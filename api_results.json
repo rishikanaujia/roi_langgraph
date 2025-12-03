@@ -1,0 +1,222 @@
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "countries_analyzed": 3,
+      "top_recommendation": "USA",
+      "timestamp": "2025-12-03T21:05:00.284668",
+      "ai_insights_included": true
+    },
+    "country_reports": {
+      "USA": {
+        "country_code": "USA",
+        "country_name": "USA",
+        "aggregate_metrics": {
+          "average_irr": 3.46,
+          "average_lcoe": 75.08,
+          "average_npv": -34108583.5
+        },
+        "location_analyses": [
+          {
+            "irr": 2.6,
+            "lcoe": 91.37,
+            "npv": -24263980,
+            "capacity_factor": 0.172,
+            "annual_generation_mwh": 75471,
+            "location": {
+              "country_code": "USA",
+              "technology": "solar_pv",
+              "name": "Arizona Solar Farm",
+              "latitude": 36,
+              "longitude": -112,
+              "resource_data": {
+                "success": true,
+                "ghi_kwh_m2_day": 5.6,
+                "source": "NASA POWER"
+              }
+            }
+          },
+          {
+            "irr": 4.32,
+            "lcoe": 58.79,
+            "npv": -43953187,
+            "capacity_factor": 0.341,
+            "annual_generation_mwh": 298541,
+            "location": {
+              "country_code": "USA",
+              "technology": "onshore_wind",
+              "name": "Nebraska Wind Farm",
+              "latitude": 41,
+              "longitude": -100,
+              "resource_data": {
+                "success": true,
+                "wind_speed_50m_ms": 7.61,
+                "wind_speed_100m_ms": 9.52,
+                "source": "NASA POWER"
+              }
+            }
+          }
+        ]
+      },
+      "BRA": {
+        "country_code": "BRA",
+        "country_name": "BRA",
+        "aggregate_metrics": {
+          "average_irr": 3.125,
+          "average_lcoe": 69.44,
+          "average_npv": -33347905.5
+        },
+        "location_analyses": [
+          {
+            "irr": 2.95,
+            "lcoe": 80.16,
+            "npv": -19043187,
+            "capacity_factor": 0.169,
+            "annual_generation_mwh": 73854,
+            "location": {
+              "country_code": "BRA",
+              "technology": "solar_pv",
+              "name": "Bahia Solar Complex",
+              "latitude": -10,
+              "longitude": -48,
+              "resource_data": {
+                "success": true,
+                "ghi_kwh_m2_day": 5.48,
+                "source": "NASA POWER"
+              }
+            }
+          },
+          {
+            "irr": 3.3,
+            "lcoe": 58.72,
+            "npv": -47652624,
+            "capacity_factor": 0.305,
+            "annual_generation_mwh": 267005,
+            "location": {
+              "country_code": "BRA",
+              "technology": "onshore_wind",
+              "name": "Ceará Wind Farm",
+              "latitude": -5,
+              "longitude": -37.5,
+              "resource_data": {
+                "success": true,
+                "wind_speed_50m_ms": 6.9,
+                "wind_speed_100m_ms": 8.62,
+                "source": "NASA POWER"
+              }
+            }
+          }
+        ]
+      },
+      "IND": {
+        "country_code": "IND",
+        "country_name": "IND",
+        "aggregate_metrics": {
+          "average_irr": -1.9899999999999998,
+          "average_lcoe": 93.14,
+          "average_npv": -59679612
+        },
+        "location_analyses": [
+          {
+            "irr": 2.62,
+            "lcoe": 74.09,
+            "npv": -18104131,
+            "capacity_factor": 0.167,
+            "annual_generation_mwh": 73314,
+            "location": {
+              "country_code": "IND",
+              "technology": "solar_pv",
+              "name": "Gujarat Solar Park",
+              "latitude": 23,
+              "longitude": 72.5,
+              "resource_data": {
+                "success": true,
+                "ghi_kwh_m2_day": 5.44,
+                "source": "NASA POWER"
+              }
+            }
+          },
+          {
+            "irr": -6.6,
+            "lcoe": 112.19,
+            "npv": -101255093,
+            "capacity_factor": 0.15,
+            "annual_generation_mwh": 131400,
+            "location": {
+              "country_code": "IND",
+              "technology": "onshore_wind",
+              "name": "Tamil Nadu Wind Farm",
+              "latitude": 9.5,
+              "longitude": 77.5,
+              "resource_data": {
+                "success": true,
+                "wind_speed_50m_ms": 3.8,
+                "wind_speed_100m_ms": 4.75,
+                "source": "NASA POWER"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "ranking": {
+      "ranked_countries": [
+        {
+          "rank": 1,
+          "country_code": "USA",
+          "country_name": "USA",
+          "overall_score": 34.6,
+          "justification": "IRR: 3.46%"
+        },
+        {
+          "rank": 2,
+          "country_code": "BRA",
+          "country_name": "BRA",
+          "overall_score": 31.25,
+          "justification": "IRR: 3.12%"
+        },
+        {
+          "rank": 3,
+          "country_code": "IND",
+          "country_name": "IND",
+          "overall_score": -19.9,
+          "justification": "IRR: -1.99%"
+        }
+      ],
+      "methodology": "Ranked by average IRR"
+    },
+    "ranking_explanation": {
+      "explanation": "The USA ranks as the top investment choice primarily due to its highest Internal Rate of Return (IRR) at 3.46% and the most favorable Net Present Value (NPV) among the options, despite being negative at $-34.1M. These metrics indicate a relatively better potential for returns and lower financial risk compared to the other regions. The top performers, USA and Brazil, are distinguished by their more competitive Levelized Cost of Electricity (LCOE), with Brazil having the lowest at $69.44/MWh, suggesting more efficient energy production costs. Key decision factors include evaluating the IRR for potential profitability, LCOE for cost efficiency, and NPV for overall financial viability. However, it's crucial to note that all options currently present negative NPVs, indicating potential losses, and thus, any investment should be approached with caution, considering potential market changes or strategic advantages that could mitigate these financial risks.",
+      "methodology": "Ranked by average IRR",
+      "confidence": "high",
+      "source": "GPT-4o"
+    },
+    "country_insights": {
+      "USA": {
+        "analysis": "1. **Resource Quality Assessment**: The Arizona Solar Farm has a moderate solar resource at 5.60 kWh/m²/day, which is typical for the region but not exceptional. The Nebraska Wind Farm benefits from a strong wind resource with an average speed of 9.52 m/s, contributing to a solid capacity factor of 34.1%.\n\n2. **Financial Viability**: Both projects exhibit low financial attractiveness. The Arizona Solar Farm has a low IRR of 2.60% and a high LCOE of $91.37/MWh, resulting in a negative NPV of $-24.3M. The Nebraska Wind Farm, while having a better IRR of 4.32% and a lower LCOE of $58.79/MWh, still results in a significant negative NPV of $-44.0M.\n\n3. **Key Risks or Opportunities**: The primary risk is the negative NPVs and low IRRs, indicating that these projects may not generate sufficient returns. However, opportunities may arise from potential policy incentives or technological advancements that could improve financial metrics.\n\n4. **Investment Recommendation**: AVOID. Both projects currently show poor financial viability with negative NPVs and low IRRs, making them unattractive investments without significant improvements in cost structure or revenue potential.",
+        "confidence": "high",
+        "source": "GPT-4o"
+      },
+      "BRA": {
+        "analysis": "1. **Resource Quality Assessment**: The Ceará Wind Farm benefits from a strong wind resource with an average speed of 8.62 m/s, supporting a solid capacity factor of 30.5%. The Bahia Solar Complex, however, has a moderate solar resource of 5.48 kWh/m²/day and a lower capacity factor of 16.9%.\n\n2. **Financial Viability**: Both projects exhibit financial challenges, with negative NPVs and IRRs below typical investment thresholds. The Ceará Wind Farm has a slightly better IRR of 3.30% and a more competitive LCOE of $58.72/MWh compared to the Bahia Solar Complex's IRR of 2.95% and higher LCOE of $80.16/MWh.\n\n3. **Key Risks or Opportunities**: The primary risk is the negative NPV for both projects, indicating potential losses. However, the Ceará Wind Farm's lower LCOE and better resource quality present an opportunity for cost optimization and potential future profitability improvements.\n\n4. **Investment Recommendation**: AVOID. Both projects currently show insufficient financial returns and high risk, with negative NPVs. Focus on opportunities with better financial metrics or explore ways to reduce costs and improve efficiency before reconsidering investment.",
+        "confidence": "high",
+        "source": "GPT-4o"
+      },
+      "IND": {
+        "analysis": "1. **Resource Quality Assessment**: The solar resource in Gujarat is moderately strong at 5.44 kWh/m²/day, supporting a capacity factor of 16.7%, which is reasonable for solar PV. However, the wind speed in Tamil Nadu is low at 4.75 m/s, resulting in a poor capacity factor of 15.0%, indicating suboptimal conditions for wind energy generation.\n\n2. **Financial Viability**: Both projects exhibit negative NPVs, with the Gujarat Solar Park at $-18.1M and Tamil Nadu Wind Farm at $-101.3M, indicating potential financial losses. The IRR for Gujarat Solar Park is slightly positive at 2.62%, but still below typical investment thresholds, while Tamil Nadu Wind Farm has a significantly negative IRR of -6.60%. The LCOE for Gujarat is $74.09/MWh, which is more competitive compared to Tamil Nadu's $112.19/MWh.\n\n3. **Key Risks or Opportunities**: The primary risk is the financial underperformance due to high LCOEs and negative NPVs. However, Gujarat Solar Park's relatively lower LCOE presents an opportunity if cost reductions or policy incentives can be leveraged to improve returns.\n\n4. **Investment Recommendation**: **AVOID**. Both projects currently demonstrate poor financial metrics with negative NPVs and insufficient IRRs. Focus should be on improving resource efficiency or seeking projects with better financial and resource profiles.",
+        "confidence": "high",
+        "source": "GPT-4o"
+      }
+    },
+    "verification": {
+      "verified": true,
+      "summary": "Ranking looks good",
+      "issues_found": []
+    },
+    "execution_metadata": {
+      "start_time": "2025-12-03T21:04:47.798932",
+      "agent_executions": [],
+      "end_time": "2025-12-03T21:05:00.284668"
+    }
+  }
+}

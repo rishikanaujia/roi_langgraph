@@ -1,7 +1,5 @@
 """
-FastAPI Routes for Multi-Agent System
-
-Exposes the LangGraph workflow as REST API endpoints.
+FastAPI Routes for Multi-Agent System - WITH AI INSIGHTS
 """
 
 from fastapi import FastAPI, HTTPException, Query
@@ -10,18 +8,14 @@ from typing import List, Optional
 import logging
 
 from src.workflows.country_comparison_graph import CountryComparisonWorkflow
-from src.state.shared_state import CountryAnalysisRequest, CountryAnalysisResponse
 from src.registry.agent_registry import get_registry
 
-
-# Initialize FastAPI app
 app = FastAPI(
-    title="Multi-Agent Renewable Energy Analysis",
-    description="LangGraph-based multi-agent system for renewable energy investment analysis",
-    version="1.0.0"
+    title="AI-Powered Renewable Energy Analysis",
+    description="Multi-agent system with NASA data + Financial models + GPT-4 insights",
+    version="2.0.0"
 )
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,7 +24,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Logger
 logger = logging.getLogger("API")
 
 # Global workflow instance
@@ -42,14 +35,15 @@ async def startup_event():
     """Initialize workflow on startup."""
     global workflow
     
-    logger.info("Starting Multi-Agent API...")
+    logger.info("Starting Multi-Agent API v2.0...")
     
-    # Register business unit agents
-    logger.info("Registering business unit agents...")
+    # Register all business unit agents
+    logger.info("Registering agents...")
+    import business_units.data_team.nasa_agent
+    import business_units.finance_team.financial_agents
+    import business_units.insights_team.gpt4_agents
     import business_units.ranking_team.agents
     # Add more as needed:
-    # import business_units.research_team.agents
-    # import business_units.analysis_team.agents
     
     # Create workflow
     logger.info("Creating LangGraph workflow...")
@@ -58,18 +52,23 @@ async def startup_event():
     # Show registered agents
     registry = get_registry()
     stats = registry.get_statistics()
-    logger.info(f"Registered {stats['total_agents']} agents from "
-                f"{len(stats['by_business_unit'])} business units")
+    logger.info(f"✓ Registered {stats['total_agents']} agents from {len(stats['by_business_unit'])} teams")
     
-    logger.info("API ready!")
+    logger.info("API ready! 🚀")
 
 
 @app.get("/")
 async def root():
     """Root endpoint."""
     return {
-        "name": "Multi-Agent Renewable Energy Analysis API",
-        "version": "1.0.0",
+        "name": "AI-Powered Renewable Energy Analysis API",
+        "version": "2.0.0",
+        "features": [
+            "Real NASA POWER data",
+            "Financial modeling (IRR, LCOE, NPV)",
+            "GPT-4 insights",
+            "Multi-agent orchestration"
+        ],
         "status": "running",
         "docs": "/docs"
     }
@@ -84,7 +83,8 @@ async def health():
     return {
         "status": "healthy",
         "agents_registered": stats['total_agents'],
-        "business_units": len(stats['by_business_unit'])
+        "business_units": len(stats['by_business_unit']),
+        "capabilities": list(stats['by_capability'].keys())
     }
 
 
@@ -116,21 +116,23 @@ async def list_agents(
         for a in agents
     ]
     
-    return {
-        "total": len(agents_list),
-        "agents": agents_list
-    }
+    return {"total": len(agents_list), "agents": agents_list}
 
 
-@app.post("/api/v1/compare-countries")
-async def compare_countries(
-    countries: List[str] = Query(..., min_items=2, max_items=10, description="Country codes to compare"),
-    query: Optional[str] = Query(None, description="Optional natural language query")
+@app.post("/api/v1/analyze-investments")
+async def analyze_investments(
+    countries: List[str] = Query(..., min_items=2, max_items=10),
+    query: Optional[str] = Query(None),
+    include_ai_insights: bool = Query(True, description="Include GPT-4 insights")
 ):
     """
-    Compare renewable energy investments across countries.
+    Comprehensive investment analysis with AI insights.
     
-    Uses LangGraph workflow to orchestrate multiple agents.
+    Features:
+    - Real NASA POWER data
+    - Financial calculations (IRR, LCOE, NPV)
+    - Country rankings
+    - Optional GPT-4 insights
     """
     global workflow
     
@@ -138,48 +140,69 @@ async def compare_countries(
         raise HTTPException(status_code=503, detail="Workflow not initialized")
     
     try:
-        logger.info(f"Starting comparison for countries: {countries}")
+        logger.info(f"Starting analysis for: {countries}")
         
-        # Run workflow
+        # Run main workflow
         result = workflow.run(countries=countries, query=query)
         
-        logger.info(f"Comparison completed successfully")
+        # Add AI insights if requested
+        if include_ai_insights:
+            logger.info("Generating AI insights...")
+            
+            from business_units.insights_team.gpt4_agents import (
+                gpt4_country_analyzer,
+                gpt4_ranking_explainer
+            )
+            
+            insights = gpt4_country_analyzer(result)
+            result.update(insights)
+            
+            explanation = gpt4_ranking_explainer(result)
+            result.update(explanation)
+            
+            logger.info("✓ AI insights generated")
+        
+        logger.info("Analysis completed successfully")
         
         return {
             "success": True,
             "data": {
-                "comparison_summary": {
+                "summary": {
                     "countries_analyzed": len(result.get('country_reports', {})),
-                    "timestamp": result.get('execution_metadata', {}).get('end_time')
+                    "top_recommendation": result.get('ranking', {}).get('ranked_countries', [{}])[0].get('country_code'),
+                    "timestamp": result.get('execution_metadata', {}).get('end_time'),
+                    "ai_insights_included": include_ai_insights
                 },
                 "country_reports": result.get('country_reports', {}),
                 "ranking": result.get('ranking', {}),
+                "ranking_explanation": result.get('ranking_explanation') if include_ai_insights else None,
+                "country_insights": result.get('country_insights') if include_ai_insights else None,
                 "verification": result.get('verification', {}),
-                "dual_recommendation": result.get('dual_recommendation'),
-                "ranking_iterations": result.get('ranking_iterations', []),
                 "execution_metadata": result.get('execution_metadata', {})
             }
         }
     
     except Exception as e:
-        logger.error(f"Comparison failed: {str(e)}")
+        logger.error(f"Analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/v1/workflow/graph")
-async def get_workflow_graph():
-    """Get visual representation of the workflow graph."""
-    # This would return a mermaid diagram or image
+@app.get("/api/v1/countries/supported")
+async def supported_countries():
+    """Get list of supported countries."""
+    from business_units.data_team.nasa_agent import COUNTRY_LOCATIONS
+    
     return {
-        "message": "Graph visualization not implemented yet",
-        "nodes": [
-            "validate_input",
-            "load_locations",
-            "analyze_locations",
-            "aggregate_countries",
-            "rank_countries",
-            "verify_ranking",
-            "generate_dual_recommendation"
+        "total": len(COUNTRY_LOCATIONS),
+        "countries": [
+            {
+                "code": code,
+                "locations": {
+                    "solar": locs["solar"]["name"],
+                    "wind": locs["wind"]["name"]
+                }
+            }
+            for code, locs in COUNTRY_LOCATIONS.items()
         ]
     }
 
