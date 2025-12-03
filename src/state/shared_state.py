@@ -2,7 +2,6 @@
 Shared State Definition
 
 Defines the LangGraph state structure used across all agents.
-This is the "shared memory" that all agents read from and write to.
 """
 
 from typing import TypedDict, List, Dict, Any, Optional, Annotated
@@ -13,61 +12,60 @@ from pydantic import BaseModel, Field
 class WorkflowState(TypedDict):
     """
     Main workflow state used by LangGraph.
-
+    
     This state is shared across all agents in the workflow.
-    Each agent can read from any key and write to any key.
-
-    Use Annotated with 'add' operator for lists that should accumulate.
     """
-
+    
     # Input parameters
-    countries: List[str]  # Countries to analyze
-    query: Optional[str]  # User query (if any)
-
+    countries: List[str]
+    query: Optional[str]
+    
+    # Location data
+    locations: List[Dict[str, Any]]  # ← ADD THIS LINE
+    
     # Analysis results (accumulated)
-    location_analyses: Annotated[List[Dict[str, Any]], add]  # Individual location results
-    country_reports: Dict[str, Dict[str, Any]]  # Aggregated country reports
-
+    location_analyses: Annotated[List[Dict[str, Any]], add]
+    country_reports: Dict[str, Dict[str, Any]]
+    
     # Ranking and verification
-    ranking: Optional[Dict[str, Any]]  # AI ranking result
-    verification: Optional[Dict[str, Any]]  # Verification result
-    ranking_iterations: Annotated[List[Dict[str, Any]], add]  # All ranking attempts
-
-    # Dual recommendation (for ambiguous cases)
+    ranking: Optional[Dict[str, Any]]
+    verification: Optional[Dict[str, Any]]
+    ranking_iterations: Annotated[List[Dict[str, Any]], add]
+    
+    # Dual recommendation
     dual_recommendation: Optional[Dict[str, Any]]
-
+    
     # Execution metadata
-    execution_metadata: Dict[str, Any]  # Timestamps, agent execution logs
-    errors: Annotated[List[str], add]  # Any errors encountered
-
-    # Agent outputs (flexible schema)
-    # Each agent can add its own keys here
-    agent_outputs: Dict[str, Any]  # Key-value store for agent results
+    execution_metadata: Dict[str, Any]
+    errors: Annotated[List[str], add]
+    
+    # Agent outputs
+    agent_outputs: Dict[str, Any]
 
 
 class CountryAnalysisRequest(BaseModel):
     """Request model for country comparison."""
-
+    
     countries: List[str] = Field(
-        description="List of country codes to compare (e.g., ['USA', 'DEU', 'IND'])",
+        description="List of country codes",
         min_items=2,
         max_items=10
     )
-
+    
     query: Optional[str] = Field(
         default=None,
-        description="Optional natural language query"
+        description="Optional query"
     )
-
+    
     config: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Optional configuration parameters"
+        description="Optional config"
     )
 
 
 class CountryAnalysisResponse(BaseModel):
-    """Response model for country comparison."""
-
+    """Response model."""
+    
     summary: Dict[str, Any]
     country_reports: Dict[str, Dict[str, Any]]
     ranking: Dict[str, Any]
@@ -78,22 +76,14 @@ class CountryAnalysisResponse(BaseModel):
 
 
 def create_initial_state(
-        countries: List[str],
-        query: Optional[str] = None
+    countries: List[str],
+    query: Optional[str] = None
 ) -> WorkflowState:
-    """
-    Create initial workflow state.
-
-    Args:
-        countries: List of countries to analyze
-        query: Optional user query
-
-    Returns:
-        Initial state dict
-    """
+    """Create initial workflow state."""
     return {
         "countries": countries,
         "query": query,
+        "locations": [],  # ← ADD THIS LINE
         "location_analyses": [],
         "country_reports": {},
         "ranking": None,
@@ -111,45 +101,31 @@ def create_initial_state(
 
 
 def merge_state_updates(
-        current_state: WorkflowState,
-        updates: Dict[str, Any]
+    current_state: WorkflowState,
+    updates: Dict[str, Any]
 ) -> WorkflowState:
-    """
-    Merge updates into current state.
-
-    Handles special cases:
-    - Lists with 'add' annotation are appended
-    - Dicts are merged (not replaced)
-    - Other values are replaced
-
-    Args:
-        current_state: Current workflow state
-        updates: Updates from agent execution
-
-    Returns:
-        Updated state
-    """
+    """Merge updates into current state."""
     new_state = current_state.copy()
-
+    
     for key, value in updates.items():
         if key in new_state:
             existing = new_state[key]
-
+            
             # Lists with 'add' annotation - append
             if isinstance(existing, list) and isinstance(value, list):
                 new_state[key] = existing + value
-
+            
             # Dicts - merge
             elif isinstance(existing, dict) and isinstance(value, dict):
                 new_state[key] = {**existing, **value}
-
+            
             # Everything else - replace
             else:
                 new_state[key] = value
         else:
             # New key
             new_state[key] = value
-
+    
     return new_state
 
 
@@ -170,10 +146,10 @@ def add_error(state: WorkflowState, error: str) -> Dict[str, Any]:
 
 
 def log_agent_execution(
-        state: WorkflowState,
-        agent_id: str,
-        execution_time: float,
-        success: bool
+    state: WorkflowState,
+    agent_id: str,
+    execution_time: float,
+    success: bool
 ) -> Dict[str, Any]:
     """Log agent execution in metadata."""
     execution_log = {
@@ -181,11 +157,11 @@ def log_agent_execution(
         "execution_time": execution_time,
         "success": success
     }
-
+    
     current_metadata = state.get("execution_metadata", {})
     agent_executions = current_metadata.get("agent_executions", [])
     agent_executions.append(execution_log)
-
+    
     return {
         "execution_metadata": {
             **current_metadata,

@@ -1,0 +1,304 @@
+{
+  "countries": [
+    "USA",
+    "DEU",
+    "IND"
+  ],
+  "query": "Compare renewable energy investments",
+  "locations": [
+    {
+      "country_code": "USA",
+      "technology": "solar_pv",
+      "name": "USA Solar",
+      "latitude": 0.0,
+      "longitude": 0.0
+    },
+    {
+      "country_code": "USA",
+      "technology": "onshore_wind",
+      "name": "USA Wind",
+      "latitude": 0.0,
+      "longitude": 0.0
+    },
+    {
+      "country_code": "DEU",
+      "technology": "solar_pv",
+      "name": "DEU Solar",
+      "latitude": 0.0,
+      "longitude": 0.0
+    },
+    {
+      "country_code": "DEU",
+      "technology": "onshore_wind",
+      "name": "DEU Wind",
+      "latitude": 0.0,
+      "longitude": 0.0
+    },
+    {
+      "country_code": "IND",
+      "technology": "solar_pv",
+      "name": "IND Solar",
+      "latitude": 0.0,
+      "longitude": 0.0
+    },
+    {
+      "country_code": "IND",
+      "technology": "onshore_wind",
+      "name": "IND Wind",
+      "latitude": 0.0,
+      "longitude": 0.0
+    }
+  ],
+  "location_analyses": [
+    {
+      "location": {
+        "country_code": "USA",
+        "technology": "solar_pv",
+        "name": "USA Solar",
+        "latitude": 0.0,
+        "longitude": 0.0
+      },
+      "irr": 5.0,
+      "lcoe": 60.0,
+      "npv": -50000000
+    },
+    {
+      "location": {
+        "country_code": "USA",
+        "technology": "onshore_wind",
+        "name": "USA Wind",
+        "latitude": 0.0,
+        "longitude": 0.0
+      },
+      "irr": 5.0,
+      "lcoe": 60.0,
+      "npv": -50000000
+    },
+    {
+      "location": {
+        "country_code": "DEU",
+        "technology": "solar_pv",
+        "name": "DEU Solar",
+        "latitude": 0.0,
+        "longitude": 0.0
+      },
+      "irr": 5.0,
+      "lcoe": 60.0,
+      "npv": -50000000
+    },
+    {
+      "location": {
+        "country_code": "DEU",
+        "technology": "onshore_wind",
+        "name": "DEU Wind",
+        "latitude": 0.0,
+        "longitude": 0.0
+      },
+      "irr": 5.0,
+      "lcoe": 60.0,
+      "npv": -50000000
+    },
+    {
+      "location": {
+        "country_code": "IND",
+        "technology": "solar_pv",
+        "name": "IND Solar",
+        "latitude": 0.0,
+        "longitude": 0.0
+      },
+      "irr": 5.0,
+      "lcoe": 60.0,
+      "npv": -50000000
+    },
+    {
+      "location": {
+        "country_code": "IND",
+        "technology": "onshore_wind",
+        "name": "IND Wind",
+        "latitude": 0.0,
+        "longitude": 0.0
+      },
+      "irr": 5.0,
+      "lcoe": 60.0,
+      "npv": -50000000
+    }
+  ],
+  "country_reports": {
+    "USA": {
+      "country_code": "USA",
+      "country_name": "USA",
+      "aggregate_metrics": {
+        "average_irr": 5.0,
+        "average_lcoe": 60.0,
+        "average_npv": -50000000.0
+      },
+      "location_analyses": [
+        {
+          "location": {
+            "country_code": "USA",
+            "technology": "solar_pv",
+            "name": "USA Solar",
+            "latitude": 0.0,
+            "longitude": 0.0
+          },
+          "irr": 5.0,
+          "lcoe": 60.0,
+          "npv": -50000000
+        },
+        {
+          "location": {
+            "country_code": "USA",
+            "technology": "onshore_wind",
+            "name": "USA Wind",
+            "latitude": 0.0,
+            "longitude": 0.0
+          },
+          "irr": 5.0,
+          "lcoe": 60.0,
+          "npv": -50000000
+        }
+      ]
+    },
+    "DEU": {
+      "country_code": "DEU",
+      "country_name": "DEU",
+      "aggregate_metrics": {
+        "average_irr": 5.0,
+        "average_lcoe": 60.0,
+        "average_npv": -50000000.0
+      },
+      "location_analyses": [
+        {
+          "location": {
+            "country_code": "DEU",
+            "technology": "solar_pv",
+            "name": "DEU Solar",
+            "latitude": 0.0,
+            "longitude": 0.0
+          },
+          "irr": 5.0,
+          "lcoe": 60.0,
+          "npv": -50000000
+        },
+        {
+          "location": {
+            "country_code": "DEU",
+            "technology": "onshore_wind",
+            "name": "DEU Wind",
+            "latitude": 0.0,
+            "longitude": 0.0
+          },
+          "irr": 5.0,
+          "lcoe": 60.0,
+          "npv": -50000000
+        }
+      ]
+    },
+    "IND": {
+      "country_code": "IND",
+      "country_name": "IND",
+      "aggregate_metrics": {
+        "average_irr": 5.0,
+        "average_lcoe": 60.0,
+        "average_npv": -50000000.0
+      },
+      "location_analyses": [
+        {
+          "location": {
+            "country_code": "IND",
+            "technology": "solar_pv",
+            "name": "IND Solar",
+            "latitude": 0.0,
+            "longitude": 0.0
+          },
+          "irr": 5.0,
+          "lcoe": 60.0,
+          "npv": -50000000
+        },
+        {
+          "location": {
+            "country_code": "IND",
+            "technology": "onshore_wind",
+            "name": "IND Wind",
+            "latitude": 0.0,
+            "longitude": 0.0
+          },
+          "irr": 5.0,
+          "lcoe": 60.0,
+          "npv": -50000000
+        }
+      ]
+    }
+  },
+  "ranking": {
+    "ranked_countries": [
+      {
+        "rank": 1,
+        "country_code": "USA",
+        "country_name": "USA",
+        "overall_score": 50.0,
+        "justification": "IRR: 5.00%"
+      },
+      {
+        "rank": 2,
+        "country_code": "DEU",
+        "country_name": "DEU",
+        "overall_score": 50.0,
+        "justification": "IRR: 5.00%"
+      },
+      {
+        "rank": 3,
+        "country_code": "IND",
+        "country_name": "IND",
+        "overall_score": 50.0,
+        "justification": "IRR: 5.00%"
+      }
+    ],
+    "methodology": "Ranked by average IRR"
+  },
+  "verification": {
+    "verified": true,
+    "summary": "Ranking looks good",
+    "issues_found": []
+  },
+  "ranking_iterations": [
+    {
+      "iteration": 1,
+      "ranking": {
+        "ranked_countries": [
+          {
+            "rank": 1,
+            "country_code": "USA",
+            "country_name": "USA",
+            "overall_score": 50.0,
+            "justification": "IRR: 5.00%"
+          },
+          {
+            "rank": 2,
+            "country_code": "DEU",
+            "country_name": "DEU",
+            "overall_score": 50.0,
+            "justification": "IRR: 5.00%"
+          },
+          {
+            "rank": 3,
+            "country_code": "IND",
+            "country_name": "IND",
+            "overall_score": 50.0,
+            "justification": "IRR: 5.00%"
+          }
+        ],
+        "methodology": "Ranked by average IRR"
+      },
+      "timestamp": "2025-12-03T17:14:15.714200"
+    }
+  ],
+  "dual_recommendation": null,
+  "execution_metadata": {
+    "start_time": "2025-12-03T17:14:15.690114",
+    "agent_executions": [],
+    "end_time": "2025-12-03T17:14:15.724984"
+  },
+  "errors": [],
+  "agent_outputs": {}
+}
