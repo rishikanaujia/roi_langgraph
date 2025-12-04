@@ -1,170 +1,100 @@
 """
 Shared State Definition
 
-Defines the LangGraph state structure used across all agents.
+TypedDict defining the complete state passed through the workflow.
 """
 
-from typing import TypedDict, List, Dict, Any, Optional, Annotated
-from operator import add
-from pydantic import BaseModel, Field
+from typing import Dict, Any, List, TypedDict, Optional
 
 
-class WorkflowState(TypedDict):
+class WorkflowState(TypedDict, total=False):
     """
-    Main workflow state used by LangGraph.
+    Complete state for the country comparison workflow.
     
-    This state is shared across all agents in the workflow.
+    This state is passed between all workflow nodes.
+    Each node can read from and write to this state.
     """
     
-    # Input parameters
-    countries: List[str]
-    query: Optional[str]
+    # ==================== INPUT ====================
+    countries: List[str]  # List of country codes to compare
+    query: Optional[str]  # Optional natural language query
     
-    # Location data
-    locations: List[Dict[str, Any]]  # ← ADD THIS LINE
+    # ==================== RESEARCH DATA (NEW) ====================
+    research_json_path: Optional[str]  # Path to research JSON file
+    research_json_data: Optional[List[Dict[str, str]]]  # Direct research data
+    country_research: Dict[str, str]  # Research text by country code
+    research_metadata: Dict[str, Any]  # Research loading metadata
     
-    # Analysis results (accumulated)
-    location_analyses: Annotated[List[Dict[str, Any]], add]
-    country_reports: Dict[str, Dict[str, Any]]
+    # ==================== DATA LOADING ====================
+    locations: List[Dict[str, Any]]  # Representative locations
     
-    # Ranking and verification
-    ranking: Optional[Dict[str, Any]]
-    verification: Optional[Dict[str, Any]]
-    ranking_iterations: Annotated[List[Dict[str, Any]], add]
+    # ==================== ANALYSIS ====================
+    location_analyses: List[Dict[str, Any]]  # Analysis for each location
+    country_reports: Dict[str, Dict[str, Any]]  # Aggregated by country
     
-    # Dual recommendation
-    dual_recommendation: Optional[Dict[str, Any]]
+    # ==================== RANKING ====================
+    ranking: Dict[str, Any]  # Current ranking
+    verification: Dict[str, Any]  # Verification results
+    ranking_iterations: List[Dict[str, Any]]  # History of ranking attempts
     
-    # Execution metadata
-    execution_metadata: Dict[str, Any]
-    errors: Annotated[List[str], add]
+    # ==================== INSIGHTS (NEW) ====================
+    country_insights: Dict[str, Dict[str, Any]]  # Insights per country
+    ranking_explanation: Dict[str, Any]  # Ranking explanation
+    insights_metadata: Dict[str, Any]  # Insights generation metadata
     
-    # Agent outputs
-    agent_outputs: Dict[str, Any]
-
-
-class CountryAnalysisRequest(BaseModel):
-    """Request model for country comparison."""
+    # ==================== DUAL RECOMMENDATION ====================
+    dual_recommendation: Optional[Dict[str, Any]]  # For ambiguous cases
     
-    countries: List[str] = Field(
-        description="List of country codes",
-        min_items=2,
-        max_items=10
-    )
-    
-    query: Optional[str] = Field(
-        default=None,
-        description="Optional query"
-    )
-    
-    config: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Optional config"
-    )
-
-
-class CountryAnalysisResponse(BaseModel):
-    """Response model."""
-    
-    summary: Dict[str, Any]
-    country_reports: Dict[str, Dict[str, Any]]
-    ranking: Dict[str, Any]
-    verification: Dict[str, Any]
-    dual_recommendation: Optional[Dict[str, Any]]
-    ranking_iterations: List[Dict[str, Any]]
-    execution_metadata: Dict[str, Any]
+    # ==================== METADATA ====================
+    execution_metadata: Dict[str, Any]  # Execution timing, agent calls, etc.
+    errors: List[str]  # Any errors encountered
+    agent_outputs: Dict[str, Any]  # Raw agent outputs for debugging
 
 
 def create_initial_state(
     countries: List[str],
-    query: Optional[str] = None
+    query: str = None,
+    research_json_path: str = None,
+    research_json_data: List[Dict[str, str]] = None
 ) -> WorkflowState:
-    """Create initial workflow state."""
-    return {
+    """
+    Create initial workflow state.
+    
+    Args:
+        countries: List of country codes to compare
+        query: Optional natural language query
+        research_json_path: Optional path to research JSON
+        research_json_data: Optional direct research data
+        
+    Returns:
+        Initial state dictionary
+    """
+    state: WorkflowState = {
         "countries": countries,
         "query": query,
-        "locations": [],  # ← ADD THIS LINE
+        "locations": [],
+        "country_research": {},
+        "research_metadata": {},
         "location_analyses": [],
         "country_reports": {},
-        "ranking": None,
-        "verification": None,
+        "ranking": {},
+        "verification": {},
         "ranking_iterations": [],
+        "country_insights": {},
+        "ranking_explanation": {},
+        "insights_metadata": {},
         "dual_recommendation": None,
         "execution_metadata": {
-            "start_time": None,
-            "end_time": None,
             "agent_executions": []
         },
         "errors": [],
         "agent_outputs": {}
     }
-
-
-def merge_state_updates(
-    current_state: WorkflowState,
-    updates: Dict[str, Any]
-) -> WorkflowState:
-    """Merge updates into current state."""
-    new_state = current_state.copy()
     
-    for key, value in updates.items():
-        if key in new_state:
-            existing = new_state[key]
-            
-            # Lists with 'add' annotation - append
-            if isinstance(existing, list) and isinstance(value, list):
-                new_state[key] = existing + value
-            
-            # Dicts - merge
-            elif isinstance(existing, dict) and isinstance(value, dict):
-                new_state[key] = {**existing, **value}
-            
-            # Everything else - replace
-            else:
-                new_state[key] = value
-        else:
-            # New key
-            new_state[key] = value
+    # Add research data if provided
+    if research_json_path:
+        state["research_json_path"] = research_json_path
+    if research_json_data:
+        state["research_json_data"] = research_json_data
     
-    return new_state
-
-
-# State accessor helpers
-def get_country_report(state: WorkflowState, country_code: str) -> Optional[Dict[str, Any]]:
-    """Get report for specific country."""
-    return state.get("country_reports", {}).get(country_code)
-
-
-def add_location_analysis(state: WorkflowState, analysis: Dict[str, Any]) -> Dict[str, Any]:
-    """Add a location analysis to state."""
-    return {"location_analyses": [analysis]}
-
-
-def add_error(state: WorkflowState, error: str) -> Dict[str, Any]:
-    """Add an error to state."""
-    return {"errors": [error]}
-
-
-def log_agent_execution(
-    state: WorkflowState,
-    agent_id: str,
-    execution_time: float,
-    success: bool
-) -> Dict[str, Any]:
-    """Log agent execution in metadata."""
-    execution_log = {
-        "agent_id": agent_id,
-        "execution_time": execution_time,
-        "success": success
-    }
-    
-    current_metadata = state.get("execution_metadata", {})
-    agent_executions = current_metadata.get("agent_executions", [])
-    agent_executions.append(execution_log)
-    
-    return {
-        "execution_metadata": {
-            **current_metadata,
-            "agent_executions": agent_executions
-        }
-    }
+    return state

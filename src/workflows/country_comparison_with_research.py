@@ -282,6 +282,13 @@ class CountryComparisonWorkflowWithResearch:
         if country_research:
             self.logger.info(f"📚 Including research for {len(country_research)} countries")
         
+        # Initialize results with defaults (CRITICAL FIX)
+        results = {
+            "country_insights": {},
+            "ranking_explanation": {},
+            "insights_metadata": {}
+        }
+        
         # Find insights agents
         insights_agents = self.registry.find_agents_by_capability(
             AgentCapability.REPORT_GEN
@@ -298,26 +305,34 @@ class CountryComparisonWorkflowWithResearch:
             if "ranking_explainer" in a.agent_id
         ]
         
-        results = {}
-        
         # Generate country insights
         if country_analyzers:
+            self.logger.info(f"Found {len(country_analyzers)} country analyzer(s)")
             agent = country_analyzers[0]
             result = self.registry.execute_agent(agent.agent_id, state)
             
             if result.success:
-                results.update({
-                    "country_insights": result.outputs.get("country_insights", {}),
-                    "insights_metadata": result.outputs.get("insights_metadata", {})
-                })
+                results["country_insights"] = result.outputs.get("country_insights", {})
+                results["insights_metadata"] = result.outputs.get("insights_metadata", {})
+                self.logger.info("✓ Country insights generated")
+            else:
+                self.logger.warning(f"Country analyzer failed: {result.error}")
+        else:
+            self.logger.warning("No country analyzer agents found")
         
         # Generate ranking explanation
         if ranking_explainers:
+            self.logger.info(f"Found {len(ranking_explainers)} ranking explainer(s)")
             agent = ranking_explainers[0]
             result = self.registry.execute_agent(agent.agent_id, state)
             
             if result.success:
                 results["ranking_explanation"] = result.outputs.get("ranking_explanation", {})
+                self.logger.info("✓ Ranking explanation generated")
+            else:
+                self.logger.warning(f"Ranking explainer failed: {result.error}")
+        else:
+            self.logger.warning("No ranking explainer agents found")
         
         return results
     
@@ -364,13 +379,12 @@ class CountryComparisonWorkflowWithResearch:
         self.logger.info(f"Starting workflow for countries: {countries}")
         
         # Create initial state
-        initial_state = create_initial_state(countries, query)
-        
-        # Add research data if provided
-        if research_json_path:
-            initial_state["research_json_path"] = research_json_path
-        if research_json_data:
-            initial_state["research_json_data"] = research_json_data
+        initial_state = create_initial_state(
+            countries,
+            query,
+            research_json_path,
+            research_json_data
+        )
         
         # Run graph
         final_state = self.graph.invoke(initial_state)
