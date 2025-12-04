@@ -1,27 +1,17 @@
 """
-Insights Team - LangChain Agents with Web Search
+Insights Team - LangChain Powered Agents
 
-Phase 2 Enhancement: Added web search capability for real-time information.
-
-New Features:
-- ✅ Web search tool (Tavily) for recent news and policy updates
-- ✅ Intelligent search query generation
-- ✅ Source citation and transparency
-- ✅ Fallback to analysis without search if needed
-- ✅ Cost tracking for both LLM and search API calls
+Upgraded from Custom + OpenAI SDK to full LangChain.
 """
 
 import os
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema.output_parser import StrOutputParser
-from langchain_community.callbacks import get_openai_callback
-
-# Tavily Search Tool
-from tavily import TavilyClient
+from langchain_community.callbacks import get_openai_callback  # FIXED ✨
 
 from src.registry.agent_registry import register_agent
 from src.registry.agent_metadata import AgentFramework, AgentCapability
@@ -30,10 +20,9 @@ logger = logging.getLogger("GPT4Agents")
 
 
 # ============================================================================
-# Configuration
+# LangChain LLM Configuration
 # ============================================================================
 
-# LangChain LLM
 llm = ChatOpenAI(
     model="gpt-4o",
     temperature=0.3,
@@ -42,125 +31,9 @@ llm = ChatOpenAI(
     request_timeout=60
 )
 
-# Tavily Search Client
-tavily_client = None
-try:
-    tavily_api_key = os.environ.get("TAVILY_API_KEY")
-    if tavily_api_key:
-        tavily_client = TavilyClient(api_key=tavily_api_key)
-        logger.info("✓ Tavily search client initialized")
-    else:
-        logger.warning("⚠️  TAVILY_API_KEY not found - web search disabled")
-except Exception as e:
-    logger.warning(f"⚠️  Tavily initialization failed: {str(e)} - web search disabled")
-
 
 # ============================================================================
-# Web Search Helper Functions
-# ============================================================================
-
-def generate_search_query(country_code: str, context: str) -> str:
-    """
-    Generate an intelligent search query for the country.
-    
-    Args:
-        country_code: Country code (e.g., "USA", "IND")
-        context: Brief context about what we're analyzing
-    
-    Returns:
-        Search query string
-    """
-    # Map country codes to full names
-    country_names = {
-        "USA": "United States",
-        "DEU": "Germany",
-        "IND": "India",
-        "CHN": "China",
-        "BRA": "Brazil",
-        "AUS": "Australia",
-        "GBR": "United Kingdom",
-        "CAN": "Canada",
-        "FRA": "France",
-        "JPN": "Japan"
-    }
-    
-    country_name = country_names.get(country_code, country_code)
-    
-    # Generate focused search query
-    query = f"{country_name} renewable energy policy investment news 2025"
-    
-    return query
-
-
-def search_web(query: str, max_results: int = 3) -> List[Dict[str, Any]]:
-    """
-    Search the web using Tavily.
-    
-    Args:
-        query: Search query
-        max_results: Maximum number of results to return
-    
-    Returns:
-        List of search results with title, content, and URL
-    """
-    if not tavily_client:
-        logger.warning("Tavily client not available, skipping search")
-        return []
-    
-    try:
-        logger.info(f"Searching web: '{query}'")
-        
-        # Tavily search with focus on recent, relevant content
-        response = tavily_client.search(
-            query=query,
-            max_results=max_results,
-            search_depth="basic",  # "basic" or "advanced"
-            include_answer=False,
-            include_raw_content=False
-        )
-        
-        results = []
-        for item in response.get('results', []):
-            results.append({
-                'title': item.get('title', ''),
-                'content': item.get('content', ''),
-                'url': item.get('url', ''),
-                'score': item.get('score', 0)
-            })
-        
-        logger.info(f"✓ Found {len(results)} search results")
-        return results
-    
-    except Exception as e:
-        logger.error(f"Web search failed: {str(e)}")
-        return []
-
-
-def format_search_results(results: List[Dict[str, Any]]) -> str:
-    """
-    Format search results for inclusion in prompt.
-    
-    Args:
-        results: List of search results
-    
-    Returns:
-        Formatted string
-    """
-    if not results:
-        return "No recent web information available."
-    
-    formatted = "**Recent Web Information:**\n\n"
-    
-    for i, result in enumerate(results, 1):
-        formatted += f"{i}. **{result['title']}**\n"
-        formatted += f"   {result['content'][:200]}...\n"
-        formatted += f"   Source: {result['url']}\n\n"
-    
-    return formatted
-
-
-# ============================================================================
-# Country Analyzer with Web Search
+# Country Analyzer - LangChain Version
 # ============================================================================
 
 country_analysis_template = ChatPromptTemplate.from_messages([
@@ -169,15 +42,8 @@ country_analysis_template = ChatPromptTemplate.from_messages([
 - Project financial modeling (IRR, LCOE, NPV)
 - Investment risk analysis
 - Renewable energy policy
-- Market analysis and current events
 
-When analyzing investments:
-1. Consider both historical data AND recent developments
-2. Cite specific sources when referencing recent information
-3. Balance quantitative analysis with qualitative insights
-4. Provide actionable recommendations
-
-Be data-driven, current, and specific."""),
+Provide concise, data-driven analysis suitable for executive decision-making."""),
     
     ("user", """Analyze this renewable energy investment opportunity:
 
@@ -191,16 +57,12 @@ Be data-driven, current, and specific."""),
 **Individual Projects:**
 {projects_detail}
 
-{web_search_results}
-
-**Required Analysis (4-5 sentences):**
+**Required Analysis (3-4 sentences):**
 1. **Resource Quality Assessment:** Evaluate solar/wind resource strength
-2. **Financial Viability:** Assess IRR, LCOE, NPV - explain what they mean for investors
-3. **Policy & Market Context:** Consider recent developments and policy changes (if available)
-4. **Key Risks or Opportunities:** Identify critical factors including recent changes
-5. **Investment Recommendation:** Provide clear BUY/HOLD/AVOID with justification
+2. **Financial Viability:** Assess IRR, LCOE, NPV - be specific about what they mean
+3. **Key Risks or Opportunities:** Identify critical factors
+4. **Investment Recommendation:** Provide clear BUY/HOLD/AVOID recommendation with justification
 
-If recent web information is available, incorporate it and cite sources.
 Be specific, data-driven, and actionable.""")
 ])
 
@@ -208,32 +70,22 @@ country_analysis_chain = country_analysis_template | llm | StrOutputParser()
 
 
 @register_agent(
-    agent_id="insights_team_country_analyzer_v3_with_search",
-    name="GPT-4 Country Analyzer with Web Search",
-    description="LangChain agent with web search for real-time policy and market information",
+    agent_id="insights_team_country_analyzer_v2_langchain",
+    name="GPT-4 Country Analyzer (LangChain)",
+    description="LangChain-powered country analysis with prompt templates and cost tracking",
     framework=AgentFramework.LANGCHAIN,
     capabilities=[AgentCapability.REPORT_GEN],
     business_unit="insights_team",
     contact="insights@company.com",
-    version="3.0.0",
-    tags=["gpt-4", "web-search", "tavily", "real-time"]
+    version="2.0.0"
 )
-def langchain_country_analyzer_with_search(state: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Analyze each country using LangChain with web search capability.
-    
-    New in v3.0:
-    - Web search for recent policy updates and news
-    - Source citation and transparency
-    - Intelligent search query generation
-    - Graceful fallback if search fails
-    """
+def langchain_country_analyzer(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Analyze each country using LangChain."""
     country_reports = state.get("country_reports", {})
     country_insights = {}
     
     total_tokens = 0
     total_cost = 0.0
-    total_searches = 0
     
     for country_code, report in country_reports.items():
         metrics = report.get("aggregate_metrics", {})
@@ -260,30 +112,8 @@ def langchain_country_analyzer_with_search(state: Dict[str, Any]) -> Dict[str, A
                 ws = resource.get('wind_speed_100m_ms', 0)
                 projects_detail += f"- Wind Speed (100m): {ws:.2f} m/s\n"
         
-        # Perform web search for recent information
-        search_results = []
-        web_search_results_text = ""
-        
-        if tavily_client:
-            try:
-                search_query = generate_search_query(country_code, "investment")
-                search_results = search_web(search_query, max_results=3)
-                total_searches += 1
-                
-                if search_results:
-                    web_search_results_text = format_search_results(search_results)
-                    logger.info(f"✓ Web search completed for {country_code}")
-                else:
-                    web_search_results_text = "No recent web information found."
-            except Exception as e:
-                logger.warning(f"Search failed for {country_code}: {str(e)}")
-                web_search_results_text = "Web search unavailable - analysis based on provided data only."
-        else:
-            web_search_results_text = "Web search not configured - analysis based on provided data only."
-        
-        # Generate analysis with LangChain
         try:
-            logger.info(f"Generating enhanced analysis for {country_code}...")
+            logger.info(f"Generating LangChain insights for {country_code}...")
             
             with get_openai_callback() as cb:
                 analysis_text = country_analysis_chain.invoke({
@@ -291,27 +121,23 @@ def langchain_country_analyzer_with_search(state: Dict[str, Any]) -> Dict[str, A
                     "avg_irr": metrics.get('average_irr', 0),
                     "avg_lcoe": metrics.get('average_lcoe', 0),
                     "avg_npv": metrics.get('average_npv', 0) / 1e6,
-                    "projects_detail": projects_detail,
-                    "web_search_results": web_search_results_text
+                    "projects_detail": projects_detail
                 })
                 
                 total_tokens += cb.total_tokens
                 total_cost += cb.total_cost
                 
                 logger.info(
-                    f"✓ Generated enhanced insights for {country_code} "
+                    f"✓ Generated insights for {country_code} "
                     f"(tokens: {cb.total_tokens}, cost: ${cb.total_cost:.4f})"
                 )
                 
-                # Store insights with metadata
                 country_insights[country_code] = {
                     "analysis": analysis_text,
-                    "confidence": "high" if search_results else "medium",
-                    "source": "GPT-4o via LangChain + Web Search",
+                    "confidence": "high",
+                    "source": "GPT-4o via LangChain",
                     "tokens_used": cb.total_tokens,
-                    "cost_usd": round(cb.total_cost, 4),
-                    "web_search_performed": bool(search_results),
-                    "sources": [r['url'] for r in search_results] if search_results else []
+                    "cost_usd": round(cb.total_cost, 4)
                 }
         
         except Exception as e:
@@ -322,27 +148,21 @@ def langchain_country_analyzer_with_search(state: Dict[str, Any]) -> Dict[str, A
                 "error": str(e)
             }
     
-    logger.info(
-        f"Total usage - Tokens: {total_tokens}, "
-        f"Cost: ${total_cost:.4f}, "
-        f"Searches: {total_searches}"
-    )
+    logger.info(f"Total GPT-4 usage - Tokens: {total_tokens}, Cost: ${total_cost:.4f}")
     
     return {
         "country_insights": country_insights,
         "insights_metadata": {
             "total_tokens": total_tokens,
             "total_cost_usd": round(total_cost, 4),
-            "total_web_searches": total_searches,
             "model": "gpt-4o",
-            "framework": "langchain",
-            "search_tool": "tavily" if tavily_client else "none"
+            "framework": "langchain"
         }
     }
 
 
 # ============================================================================
-# Ranking Explainer (unchanged from v2.0)
+# Ranking Explainer - LangChain Version
 # ============================================================================
 
 ranking_explanation_template = ChatPromptTemplate.from_messages([
@@ -419,7 +239,7 @@ def langchain_ranking_explainer(state: Dict[str, Any]) -> Dict[str, Any]:
 """
     
     try:
-        logger.info("Generating ranking explanation...")
+        logger.info("Generating LangChain ranking explanation...")
         
         with get_openai_callback() as cb:
             explanation_text = ranking_explanation_chain.invoke({
@@ -459,7 +279,7 @@ os.makedirs("business_units/insights_team", exist_ok=True)
 with open("business_units/insights_team/__init__.py", "w") as f:
     f.write("")
 
-print("✅ LangChain GPT-4 Agents with Web Search registered!")
-print("   - Country Analyzer (v3.0 - with Tavily search)")
+print("✅ LangChain GPT-4 Agents registered!")
+print("   - Country Analyzer (v2.0 - LangChain)")
 print("   - Ranking Explainer (v2.0 - LangChain)")
-print("   📊 Features: Web search, source citation, cost tracking")
+print("   📊 Features: Prompt templates, cost tracking, auto-retry")
