@@ -1,0 +1,21 @@
+
+    START
+      ↓
+    1. Validate Input
+      ↓
+    2. Load Research Data ⭐
+      ↓
+    3. Load NASA Locations
+      ↓
+    4. Analyze Locations
+      ↓
+    5. Aggregate by Country
+      ↓
+    6. Rank Countries
+      ↓
+    7. Verify Ranking
+      ↓
+    8. Generate Insights ⭐
+      ↓
+    END
+    
