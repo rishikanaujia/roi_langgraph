@@ -1,0 +1,25 @@
+%%{init: {'flowchart': {'curve': 'linear'}}}%%
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	validate_input(validate_input)
+	load_research(load_research)
+	load_locations(load_locations)
+	analyze_locations(analyze_locations)
+	aggregate_countries(aggregate_countries)
+	rank_countries(rank_countries)
+	verify_ranking(verify_ranking)
+	generate_insights(generate_insights)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> validate_input;
+	aggregate_countries --> rank_countries;
+	analyze_locations --> aggregate_countries;
+	generate_insights --> __end__;
+	load_locations --> analyze_locations;
+	load_research --> load_locations;
+	rank_countries --> verify_ranking;
+	validate_input --> load_research;
+	verify_ranking -. &nbsp;retry&nbsp; .-> rank_countries;
+	verify_ranking -. &nbsp;insights&nbsp; .-> generate_insights;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

@@ -1,0 +1,22 @@
+[
+  {
+    "country_name": "United States",
+    "research": "The United States renewable energy sector is experiencing rapid growth driven by the Inflation Reduction Act (IRA). The IRA provides 30% Investment Tax Credit (ITC) for solar projects and Production Tax Credit (PTC) for wind projects. Federal support combined with state-level renewable portfolio standards creates a favorable investment climate. Key states include California (solar), Texas (wind and solar), and Iowa (wind). Grid interconnection challenges remain in some regions, but the FERC Order 2023 aims to streamline the process. The US market offers strong returns for utility-scale projects with power purchase agreements."
+  },
+  {
+    "country_name": "India",
+    "research": "India has set ambitious renewable energy targets of 500 GW by 2030, including 280 GW of solar and 140 GW of wind capacity. The PLI (Production-Linked Incentive) scheme offers capital subsidies for solar manufacturing to boost domestic production. Gujarat and Rajasthan are leading solar states with excellent irradiation levels (5.5-6.0 kWh/m²/day), while Tamil Nadu and Karnataka lead in wind energy with strong coastal wind resources. Recent policy changes include the Green Energy Open Access Rules making it easier for commercial consumers to source renewable energy. Land acquisition and grid evacuation remain challenges in some states, but the government's focus on renewable energy corridors is addressing these issues."
+  },
+  {
+    "country_name": "China",
+    "research": "China is the world's largest renewable energy market with over 1,000 GW of installed capacity, dominating both solar panel manufacturing and wind turbine production globally. The country's 14th Five-Year Plan (2021-2025) emphasizes renewable energy development with targets of 1,200 GW by 2030. Key provinces include Qinghai and Gansu for solar (excellent resources in the Gobi Desert), and Inner Mongolia for both wind and solar. China's grid integration capabilities are advanced with significant investment in UHVDC transmission lines connecting remote renewable-rich regions to coastal demand centers. Subsidy reductions have pushed the industry toward grid parity, making projects increasingly competitive. Recent policy supports hydrogen production from renewable energy."
+  },
+  {
+    "country_name": "Brazil",
+    "research": "Brazil's renewable energy sector is growing rapidly with strong wind resources in the Northeast (average 8-9 m/s at 100m) and excellent solar potential in the Southeast and Central-West regions (5.0-6.5 kWh/m²/day). The country's energy auction system (Leilões) has driven competitive pricing, with recent wind and solar projects achieving LCOEs below $30/MWh. Brazil aims for 23% of its energy matrix from non-hydro renewables by 2030. The free market (ACL) for energy trading is expanding, offering corporate PPAs as an alternative to auctions. Key challenges include transmission infrastructure development and permitting delays. The Northeast states of Bahia, Rio Grande do Norte, and Ceará are primary wind development regions, while Minas Gerais and São Paulo lead solar development."
+  },
+  {
+    "country_name": "Germany",
+    "research": "Germany's Energiewende (energy transition) policy targets 80% renewable electricity by 2030 through the EEG (Renewable Energy Act). Feed-in tariffs and priority grid access have historically supported development, though the market is transitioning to auctions. Northern Germany offers strong wind resources (especially offshore in the North Sea and Baltic Sea), while southern regions have good solar potential. Grid expansion remains a challenge with the Suedlink and Suedostlink transmission projects under development. Germany's advanced manufacturing base and research capabilities create opportunities in technology innovation. Corporate PPAs are growing as large consumers seek renewable energy. Recent policy includes accelerated permitting for renewable projects and dedicated wind energy zones."
+  }
+]
