@@ -3,7 +3,7 @@ Executive Report Generator
 
 Generates comprehensive investment reports with rankings, insights, and references.
 
-Version: 1.0.0
+Version: 1.0.1 (Fixed dict access issues)
 Author: ROI Analysis Team
 """
 
@@ -78,6 +78,13 @@ def generate_executive_report(state: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _safe_get(obj: Any, key: str, default: Any = None) -> Any:
+    """Safely get value from dict or return default."""
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return default
+
+
 def _generate_executive_summary(ranked_countries: List[Dict], country_insights: Dict) -> str:
     """Generate executive summary."""
     if not ranked_countries:
@@ -103,7 +110,7 @@ Key findings:
     # Add insights from top country
     if top_code in country_insights:
         insight = country_insights[top_code]
-        confidence = insight.get("confidence", "unknown")
+        confidence = _safe_get(insight, "confidence", "unknown")
         summary += f"- Analysis confidence: {confidence.upper()}\n"
     
     return summary.strip()
@@ -157,6 +164,22 @@ def _generate_country_analyses(
         metrics = report.get("aggregate_metrics", {})
         locations = report.get("location_analyses", [])
         
+        # Handle both dict and string formats for insight
+        if isinstance(insight, str):
+            # Insight is just a string
+            ai_analysis = insight
+            recommendation = "N/A"
+            confidence = "unknown"
+            sources = []
+            web_searches = 0
+        else:
+            # Insight is a dict
+            ai_analysis = _safe_get(insight, "analysis", "No analysis available")
+            recommendation = _safe_get(insight, "recommendation", "N/A")
+            confidence = _safe_get(insight, "confidence", "unknown")
+            sources = _safe_get(insight, "sources", [])
+            web_searches = _safe_get(insight, "web_searches_performed", 0)
+        
         analysis = {
             "rank": country.get("rank"),
             "country_code": code,
@@ -167,12 +190,12 @@ def _generate_country_analyses(
                 "npv": metrics.get("average_npv", 0)
             },
             "locations_analyzed": len(locations),
-            "ai_analysis": insight.get("analysis", "No analysis available"),
-            "recommendation": insight.get("recommendation", "N/A"),
-            "confidence": insight.get("confidence", "unknown"),
+            "ai_analysis": ai_analysis,
+            "recommendation": recommendation,
+            "confidence": confidence,
             "policy_context": research[:300] + "..." if len(research) > 300 else research,
-            "sources": insight.get("sources", []),
-            "web_searches": insight.get("web_searches_performed", 0)
+            "sources": sources if isinstance(sources, list) else [],
+            "web_searches": web_searches
         }
         
         analyses.append(analysis)
@@ -208,16 +231,21 @@ def _generate_references_section(country_insights: Dict, insights_metadata: Dict
     ref_id = 1
     
     for country_code, insight in country_insights.items():
-        sources = insight.get("sources", [])
+        # Handle both dict and other formats
+        sources = _safe_get(insight, "sources", [])
+        if not isinstance(sources, list):
+            sources = []
+            
         for source in sources:
-            references.append({
-                "id": ref_id,
-                "country": country_code,
-                "title": source.get("title", "Unknown"),
-                "url": source.get("url", ""),
-                "accessed": datetime.now().strftime("%Y-%m-%d")
-            })
-            ref_id += 1
+            if isinstance(source, dict):
+                references.append({
+                    "id": ref_id,
+                    "country": country_code,
+                    "title": source.get("title", "Unknown"),
+                    "url": source.get("url", ""),
+                    "accessed": datetime.now().strftime("%Y-%m-%d")
+                })
+                ref_id += 1
     
     return references
 
@@ -226,7 +254,9 @@ def _count_total_sources(country_insights: Dict) -> int:
     """Count total sources across all countries."""
     total = 0
     for insight in country_insights.values():
-        total += len(insight.get("sources", []))
+        sources = _safe_get(insight, "sources", [])
+        if isinstance(sources, list):
+            total += len(sources)
     return total
 
 
@@ -282,6 +312,9 @@ def _format_as_markdown(report: Dict) -> str:
         md += "**AI Analysis:**\n\n"
         ai_text = analysis['ai_analysis']
         if ai_text and ai_text != "Agent stopped due to iteration limit or time limit.":
+            # Truncate if too long
+            if len(ai_text) > 1000:
+                ai_text = ai_text[:1000] + "...\n\n*(Analysis truncated for brevity)*"
             md += f"{ai_text}\n\n"
         else:
             md += "*Analysis unavailable*\n\n"
@@ -347,7 +380,7 @@ metadata = AgentMetadata(
     agent_id="insights_team_report_generator_v1",
     name="Executive Report Generator",
     description="Generates comprehensive investment reports with rankings, insights, and references",
-    version="1.0.0",
+    version="1.0.1",
     framework=AgentFramework.CUSTOM,
     capabilities=[AgentCapability.REPORT_GEN],
     business_unit="insights_team",
@@ -360,7 +393,8 @@ metadata = AgentMetadata(
 
 registry.register_agent(metadata, generate_executive_report)
 
-print("✅ Executive Report Generator registered!")
+print("✅ Executive Report Generator registered (v1.0.1 - Fixed)!")
 print("   📊 Generates comprehensive investment reports")
 print("   📝 Includes rankings, insights, and references")
 print("   💾 Saves as markdown file")
+print("   🔧 Robust error handling for different data formats")

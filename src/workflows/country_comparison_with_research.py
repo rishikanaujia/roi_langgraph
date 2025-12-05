@@ -410,3 +410,34 @@ print("✅ Country Comparison Workflow with Research compiled!")
 print("   📚 Loads research data automatically")
 print("   🧠 Passes research to insights agents")
 print("   🎯 Richer, context-aware analysis")
+
+# Note: Add this to the existing file - insert before the class ends
+
+def _generate_report(self, state: WorkflowState) -> Dict[str, Any]:
+    """Generate final executive report (NEW)."""
+    self.logger.info("Generating executive report...")
+    
+    try:
+        result = self.registry.execute_agent(
+            "insights_team_report_generator_v1",
+            state
+        )
+        
+        if result.success:
+            report_metadata = result.outputs.get("report_metadata", {})
+            filename = report_metadata.get("filename", "report.md")
+            
+            self.logger.info(f"✓ Report generated: {filename}")
+            self.logger.info(f"   Countries: {report_metadata.get('countries_analyzed', 0)}")
+            self.logger.info(f"   Sources: {report_metadata.get('total_sources', 0)}")
+            
+            return result.outputs
+    
+    except Exception as e:
+        self.logger.warning(f"Report generation failed: {str(e)}")
+    
+    return {
+        "executive_report": {},
+        "report_markdown": "",
+        "report_metadata": {"error": "Failed to generate report"}
+    }
