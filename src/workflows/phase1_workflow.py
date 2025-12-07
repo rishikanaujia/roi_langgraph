@@ -21,6 +21,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import time
 
+from business_units.insights_team.report_generator import generate_executive_report
 from src.workflows.phase1_state import (
     Phase1State,
     create_phase1_state,
@@ -107,18 +108,7 @@ class Phase1Workflow:
             research_json_data: Optional[List[Dict[str, str]]] = None,
             query: Optional[str] = None
     ) -> Phase1State:
-        """
-        Execute Phase 1 workflow asynchronously.
-
-        Args:
-            countries: List of country codes
-            research_json_path: Optional path to research JSON
-            research_json_data: Optional direct research data
-            query: Optional query
-
-        Returns:
-            Final Phase1State with complete rankings
-        """
+        """Execute Phase 1 workflow asynchronously."""
         workflow_start = time.time()
 
         logger.info("\n" + "=" * 70)
@@ -155,6 +145,9 @@ class Phase1Workflow:
             # Stage 4: Aggregation (sequential)
             state = await self._stage4_aggregation(state)
 
+            # Stage 5: Report Generation (sequential)  # <-- ADD THIS
+            state = await self._stage5_report_generation(state)  # <-- ADD THIS
+
             # Finalize
             workflow_end = time.time()
             workflow_duration = workflow_end - workflow_start
@@ -187,6 +180,11 @@ class Phase1Workflow:
                 logger.info(f"\nFinal Rankings:")
                 for r in final_rankings:
                     logger.info(f"  {r['rank']}. {r['country_code']} - Score: {r['consensus_score']}/10")
+
+            # Show report info
+            report_path = state.get("report_metadata", {}).get("filepath")  # <-- ADD THIS
+            if report_path:  # <-- ADD THIS
+                logger.info(f"\n📄 Report saved: {report_path}")  # <-- ADD THIS
 
             return state
 
@@ -424,6 +422,44 @@ class Phase1Workflow:
         except Exception as e:
             logger.error(f"Stage 4 failed: {str(e)}")
             state["errors"].append(f"Aggregation failed: {str(e)}")
+            return state
+
+
+    async def _stage5_report_generation(self, state: Phase1State) -> Phase1State:
+        """
+        Stage 5: Generate executive report (sequential).
+
+        Creates comprehensive markdown report with all results.
+        """
+        stage_start = time.time()
+
+        logger.info("\n" + "=" * 70)
+        logger.info("STAGE 5: REPORT GENERATION")
+        logger.info("=" * 70)
+
+        try:
+            # Run report generator
+            result = await asyncio.to_thread(generate_executive_report, state)
+
+            # Merge results
+            state = merge_state_updates(state, result)
+
+            stage_duration = time.time() - stage_start
+            state["execution_metadata"]["stage_timings"]["report_generation"] = round(stage_duration, 2)
+
+            report_size = len(state.get("report_markdown", ""))
+            report_path = state.get("report_metadata", {}).get("filepath", "")
+
+            logger.info(f"✅ Stage 5 complete in {stage_duration:.2f}s")
+            logger.info(f"   Report size: {report_size:,} characters")
+            if report_path:
+                logger.info(f"   Report saved: {report_path}")
+
+            return state
+
+        except Exception as e:
+            logger.error(f"Stage 5 failed: {str(e)}")
+            state["errors"].append(f"Report generation failed: {str(e)}")
             return state
 
     def get_progress(self, state: Phase1State) -> Dict[str, str]:
