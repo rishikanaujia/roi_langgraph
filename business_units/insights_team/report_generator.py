@@ -436,18 +436,3 @@ def _format_as_markdown(report: Dict) -> str:
 def report_generator_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     """Report generator agent wrapper."""
     return generate_executive_report(state)
-
-
-# ============================================================================
-# Module Setup
-# ============================================================================
-
-os.makedirs("business_units/insights_team", exist_ok=True)
-with open("business_units/insights_team/__init__.py", "w") as f:
-    f.write("# Insights Team - Report Generation\n")
-
-logger.info("✅ Report Generator (Phase 1) Ready!")
-logger.info("   📄 Generates comprehensive markdown reports")
-logger.info("   📊 Includes rankings, presentations, and analysis")
-logger.info("   💾 Saves to reports/ directory")
-logger.info("   📈 Execution metrics and methodology")

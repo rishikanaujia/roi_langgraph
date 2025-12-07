@@ -399,19 +399,3 @@ async def execute_experts_parallel(
         "presentation_metadata": combined_metadata,
         "errors": errors
     }
-
-
-# ============================================================================
-# Module Setup
-# ============================================================================
-
-# Create business unit directory
-os.makedirs("business_units/expert_team", exist_ok=True)
-with open("business_units/expert_team/__init__.py", "w") as f:
-    f.write("# Expert Team - Country Investment Experts\n")
-
-logger.info("✅ Expert Agent System Ready!")
-logger.info("   🎯 Dynamic expert creation for any country")
-logger.info("   🤖 GPT-4 powered presentations")
-logger.info("   ⚡ Parallel execution support")
-logger.info("   📊 Structured output with Pydantic")

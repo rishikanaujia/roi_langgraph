@@ -430,14 +430,3 @@ def ranking_aggregator(state: Dict[str, Any]) -> Dict[str, Any]:
                 "timestamp": end_time.isoformat()
             }
         }
-
-
-# ============================================================================
-# Module Setup
-# ============================================================================
-
-logger.info("✅ Ranking Aggregation System Ready!")
-logger.info("   🔢 Borda count + average scoring")
-logger.info("   📊 Peer agreement analysis")
-logger.info("   🎯 Consensus ranking generation")
-logger.info("   📈 Variance and confidence tracking")

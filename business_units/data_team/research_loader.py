@@ -414,18 +414,3 @@ def research_loader(state: Dict[str, Any]) -> Dict[str, Any]:
         "research_metadata": metadata
     }
 
-
-# ============================================================================
-# Module Setup
-# ============================================================================
-
-# Create business unit directory
-os.makedirs("business_units/data_team", exist_ok=True)
-with open("business_units/data_team/__init__.py", "w") as f:
-    f.write("# Data Team - Research Loader\n")
-
-logger.info("✅ Research Data Loader (Phase 1) registered!")
-logger.info("   📄 Loads country research from JSON")
-logger.info("   🗺️  Normalizes country names to codes")
-logger.info("   📊 Supports file or direct JSON input")
-logger.info("   🔍 Validates and filters data")

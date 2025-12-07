@@ -469,19 +469,3 @@ async def execute_peer_rankers_parallel(
         "ranking_metadata": combined_metadata,
         "errors": errors
     }
-
-
-# ============================================================================
-# Module Setup
-# ============================================================================
-
-# Create business unit directory
-os.makedirs("business_units/ranking_team", exist_ok=True)
-with open("business_units/ranking_team/__init__.py", "w") as f:
-    f.write("# Ranking Team - Peer Ranking Agents\n")
-
-logger.info("✅ Peer Ranking Agent System Ready!")
-logger.info("   👥 Multiple independent peer rankers")
-logger.info("   🤖 GPT-4 powered comparative analysis")
-logger.info("   ⚡ Parallel execution support")
-logger.info("   📊 Structured ranking output")

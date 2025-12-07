@@ -524,11 +524,3 @@ def run_phase1_workflow(
         research_json_data=research_json_data,
         query=query
     )
-
-
-if __name__ == "__main__":
-    # Example usage
-    logger.info("Phase 1 Workflow Orchestrator Ready!")
-    logger.info("Usage:")
-    logger.info("  from src.workflows.phase1_workflow import run_phase1_workflow")
-    logger.info("  result = run_phase1_workflow(countries=['USA', 'IND', 'CHN'])")
