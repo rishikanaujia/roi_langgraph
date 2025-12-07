@@ -25,15 +25,15 @@ def test_langgraph_workflow():
     research_data = [
         {
             "country_name": "USA",
-            "research": "The United States offers exceptional renewable energy opportunities..."
+            "research": "The United States offers exceptional renewable energy opportunities with strong IRA policy support (30% ITC, production tax credits), world-class solar resources (6-7 kWh/m²/day in Southwest), robust wind potential (especially offshore on East Coast), mature grid infrastructure, $100+ billion annual market, and comprehensive regulatory framework."
         },
         {
             "country_name": "India",
-            "research": "India presents compelling growth opportunities..."
+            "research": "India presents compelling growth opportunities with ambitious 500 GW renewable target by 2030, Production-Linked Incentive (PLI) scheme for manufacturing, excellent solar resources in Gujarat/Rajasthan regions, significant wind potential in Tamil Nadu/Gujarat, growing grid infrastructure, and strong government commitment."
         },
         {
             "country_name": "China",
-            "research": "China dominates global renewable manufacturing..."
+            "research": "China dominates global renewable manufacturing with world's largest solar capacity (400+ GW), massive wind deployment (350+ GW), complete supply chain integration, strong government support, aggressive deployment targets, and unmatched scale."
         }
     ]
 
@@ -71,9 +71,11 @@ def test_graph_visualization():
     mermaid = visualize_phase1_graph()
 
     assert mermaid is not None
-    assert "research_loading" in mermaid
-    assert "expert_presentations" in mermaid
-    assert "peer_rankings" in mermaid
+    assert "load_research" in mermaid  # Fixed: use new node name
+    assert "generate_presentations" in mermaid  # Fixed: use new node name
+    assert "generate_rankings" in mermaid  # Fixed: use new node name
+    assert "aggregate_rankings" in mermaid  # Fixed: use new node name
+    assert "generate_report" in mermaid  # Fixed: use new node name
 
     print("\n✅ Graph visualization test: PASSED")
 

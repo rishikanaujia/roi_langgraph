@@ -11,15 +11,8 @@ from typing import TypedDict, List, Dict, Any, Optional, Annotated
 import logging
 
 from langgraph.graph import StateGraph, END
-from langchain_core.runnables import RunnableConfig
 
-from src.workflows.phase1_state import (
-    Phase1State,
-    create_phase1_state,
-    validate_phase1_state,
-    merge_state_updates
-)
-from business_units.data_team.research_loader import load_research_data
+# Don't import agent functions - we'll call them through state
 from business_units.expert_team.expert_agents import (
     create_expert_agent,
     execute_experts_parallel
@@ -28,8 +21,6 @@ from business_units.ranking_team.peer_ranking_agents import (
     create_peer_ranker_agent,
     execute_peer_rankers_parallel
 )
-from business_units.ranking_team.aggregation_logic import aggregate_peer_rankings
-from business_units.insights_team.report_generator import generate_executive_report
 
 logger = logging.getLogger("Phase1WorkflowLangGraph")
 logger.setLevel(logging.INFO)
@@ -59,7 +50,7 @@ class Phase1GraphState(TypedDict):
     countries: List[str]
     country_research: Dict[str, str]
     expert_presentations: Dict[str, Dict]
-    peer_rankings: Annotated[List[Dict], add_to_list]  # Reducer for concurrent updates
+    peer_rankings: Annotated[List[Dict], add_to_list]
     aggregated_ranking: Dict
     consensus_scores: Dict[str, float]
 
@@ -70,7 +61,7 @@ class Phase1GraphState(TypedDict):
 
     # Execution tracking
     execution_metadata: Dict
-    errors: Annotated[List[str], add_to_list]  # Reducer for errors
+    errors: Annotated[List[str], add_to_list]
 
     # Configuration
     num_peer_rankers: int
@@ -83,7 +74,7 @@ class Phase1GraphState(TypedDict):
 # Node Functions (LangGraph Nodes)
 # ============================================================================
 
-def research_loading_node(state: Phase1GraphState) -> Phase1GraphState:
+def load_research_node(state: Phase1GraphState) -> Phase1GraphState:
     """Node 1: Load research data."""
     stage_start = time.time()
 
@@ -92,22 +83,35 @@ def research_loading_node(state: Phase1GraphState) -> Phase1GraphState:
     logger.info("=" * 70)
 
     try:
-        # Load research
-        result = load_research_data(
-            countries=state["countries"],
-            research_json_path=state.get("research_json_path"),
-            research_json_data=state.get("research_json_data"),
-            query=state.get("query")
+        # Import here to avoid circular imports
+        from business_units.data_team.research_loader import (
+            load_research_from_json,
+            load_research_from_file
         )
+
+        # Load research based on what's provided
+        if state.get("research_json_data"):
+            country_research = load_research_from_json(state["research_json_data"])
+        elif state.get("research_json_path"):
+            country_research = load_research_from_file(state["research_json_path"])
+        else:
+            raise ValueError("No research data provided")
+
+        # Filter to requested countries
+        filtered_research = {
+            code: research
+            for code, research in country_research.items()
+            if code in state["countries"]
+        }
 
         stage_duration = time.time() - stage_start
 
         # Update state
-        state["country_research"] = result["country_research"]
+        state["country_research"] = filtered_research
         state["execution_metadata"]["stage_timings"]["research"] = round(stage_duration, 2)
 
         logger.info(f"✅ Stage 1 complete in {stage_duration:.2f}s")
-        logger.info(f"   Loaded research for {len(result['country_research'])} countries")
+        logger.info(f"   Loaded research for {len(filtered_research)} countries")
 
     except Exception as e:
         logger.error(f"Stage 1 failed: {str(e)}")
@@ -116,7 +120,7 @@ def research_loading_node(state: Phase1GraphState) -> Phase1GraphState:
     return state
 
 
-async def expert_presentations_node(state: Phase1GraphState) -> Phase1GraphState:
+async def generate_presentations_node(state: Phase1GraphState) -> Phase1GraphState:
     """Node 2: Generate expert presentations (parallel)."""
     stage_start = time.time()
 
@@ -155,7 +159,7 @@ async def expert_presentations_node(state: Phase1GraphState) -> Phase1GraphState
     return state
 
 
-async def peer_rankings_node(state: Phase1GraphState) -> Phase1GraphState:
+async def generate_rankings_node(state: Phase1GraphState) -> Phase1GraphState:
     """Node 3: Generate peer rankings (parallel)."""
     stage_start = time.time()
 
@@ -194,7 +198,7 @@ async def peer_rankings_node(state: Phase1GraphState) -> Phase1GraphState:
     return state
 
 
-def aggregation_node(state: Phase1GraphState) -> Phase1GraphState:
+def aggregate_rankings_node(state: Phase1GraphState) -> Phase1GraphState:
     """Node 4: Aggregate peer rankings."""
     stage_start = time.time()
 
@@ -203,8 +207,11 @@ def aggregation_node(state: Phase1GraphState) -> Phase1GraphState:
     logger.info("=" * 70)
 
     try:
+        # Import here to avoid circular imports
+        from business_units.ranking_team.aggregation_logic import aggregate_rankings
+
         # Aggregate rankings
-        result = aggregate_peer_rankings(
+        aggregated = aggregate_rankings(
             peer_rankings=state["peer_rankings"],
             method="hybrid"
         )
@@ -212,8 +219,14 @@ def aggregation_node(state: Phase1GraphState) -> Phase1GraphState:
         stage_duration = time.time() - stage_start
 
         # Update state
-        state["aggregated_ranking"] = result["aggregated_ranking"]
-        state["consensus_scores"] = result["consensus_scores"]
+        state["aggregated_ranking"] = aggregated
+
+        # Extract consensus scores
+        consensus_scores = {}
+        for ranking in aggregated.get("final_rankings", []):
+            consensus_scores[ranking["country_code"]] = ranking["consensus_score"]
+        state["consensus_scores"] = consensus_scores
+
         state["execution_metadata"]["stage_timings"]["aggregation"] = round(stage_duration, 2)
 
         logger.info(f"✅ Stage 4 complete in {stage_duration:.2f}s")
@@ -225,7 +238,7 @@ def aggregation_node(state: Phase1GraphState) -> Phase1GraphState:
     return state
 
 
-def report_generation_node(state: Phase1GraphState) -> Phase1GraphState:
+def generate_report_node(state: Phase1GraphState) -> Phase1GraphState:
     """Node 5: Generate executive report."""
     stage_start = time.time()
 
@@ -234,7 +247,10 @@ def report_generation_node(state: Phase1GraphState) -> Phase1GraphState:
     logger.info("=" * 70)
 
     try:
-        # Generate report
+        # Import here to avoid circular imports
+        from business_units.insights_team.report_generator import generate_executive_report
+
+        # Generate report (pass full state)
         result = generate_executive_report(state)
 
         stage_duration = time.time() - stage_start
@@ -258,22 +274,6 @@ def report_generation_node(state: Phase1GraphState) -> Phase1GraphState:
 
 
 # ============================================================================
-# Conditional Edge Functions
-# ============================================================================
-
-def should_continue(state: Phase1GraphState) -> str:
-    """Determine if workflow should continue or end."""
-
-    # If there are critical errors in research loading, stop
-    if state["errors"] and "Research loading failed" in state["errors"][0]:
-        logger.error("Critical error in research loading, stopping workflow")
-        return END
-
-    # Otherwise continue
-    return "continue"
-
-
-# ============================================================================
 # Graph Builder
 # ============================================================================
 
@@ -282,7 +282,7 @@ def create_phase1_graph(num_peer_rankers: int = 3) -> StateGraph:
     Create Phase 1 workflow graph using LangGraph.
 
     Graph structure:
-        research_loading → expert_presentations → peer_rankings → aggregation → report_generation → END
+        load_research → generate_presentations → generate_rankings → aggregate_rankings → generate_report → END
 
     Args:
         num_peer_rankers: Number of peer ranker agents
@@ -294,22 +294,22 @@ def create_phase1_graph(num_peer_rankers: int = 3) -> StateGraph:
     # Create graph
     workflow = StateGraph(Phase1GraphState)
 
-    # Add nodes
-    workflow.add_node("research_loading", research_loading_node)
-    workflow.add_node("expert_presentations", expert_presentations_node)
-    workflow.add_node("peer_rankings", peer_rankings_node)
-    workflow.add_node("aggregation", aggregation_node)
-    workflow.add_node("report_generation", report_generation_node)
+    # Add nodes (use different names from state keys)
+    workflow.add_node("load_research", load_research_node)
+    workflow.add_node("generate_presentations", generate_presentations_node)
+    workflow.add_node("generate_rankings", generate_rankings_node)
+    workflow.add_node("aggregate_rankings", aggregate_rankings_node)
+    workflow.add_node("generate_report", generate_report_node)
 
     # Set entry point
-    workflow.set_entry_point("research_loading")
+    workflow.set_entry_point("load_research")
 
     # Add edges (linear flow for Phase 1)
-    workflow.add_edge("research_loading", "expert_presentations")
-    workflow.add_edge("expert_presentations", "peer_rankings")
-    workflow.add_edge("peer_rankings", "aggregation")
-    workflow.add_edge("aggregation", "report_generation")
-    workflow.add_edge("report_generation", END)
+    workflow.add_edge("load_research", "generate_presentations")
+    workflow.add_edge("generate_presentations", "generate_rankings")
+    workflow.add_edge("generate_rankings", "aggregate_rankings")
+    workflow.add_edge("aggregate_rankings", "generate_report")
+    workflow.add_edge("generate_report", END)
 
     # Compile graph
     compiled_graph = workflow.compile()
