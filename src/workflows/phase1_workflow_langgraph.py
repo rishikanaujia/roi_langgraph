@@ -12,7 +12,6 @@ import logging
 
 from langgraph.graph import StateGraph, END
 
-# Don't import agent functions - we'll call them through state
 from business_units.expert_team.expert_agents import (
     create_expert_agent,
     execute_experts_parallel
@@ -83,7 +82,6 @@ def load_research_node(state: Phase1GraphState) -> Phase1GraphState:
     logger.info("=" * 70)
 
     try:
-        # Import here to avoid circular imports
         from business_units.data_team.research_loader import (
             load_research_from_json,
             load_research_from_file
@@ -93,7 +91,10 @@ def load_research_node(state: Phase1GraphState) -> Phase1GraphState:
         if state.get("research_json_data"):
             country_research = load_research_from_json(state["research_json_data"])
         elif state.get("research_json_path"):
-            country_research = load_research_from_file(state["research_json_path"])
+            country_research, errors = load_research_from_file(state["research_json_path"])
+            if errors:
+                for error in errors:
+                    state["errors"].append(f"Research loading: {error}")
         else:
             raise ValueError("No research data provided")
 
@@ -129,28 +130,26 @@ async def generate_presentations_node(state: Phase1GraphState) -> Phase1GraphSta
     logger.info("=" * 70)
 
     try:
-        # Create expert agents
-        expert_agents = {}
-        for country in state["countries"]:
-            expert = create_expert_agent(country, expert_id="1")
-            expert_agents[country] = expert
+        logger.info(f"🚀 Creating {len(state['countries'])} expert agents...")
 
-        logger.info(f"🚀 Creating {len(expert_agents)} expert agents...")
-
-        # Execute in parallel
-        presentations = await execute_experts_parallel(
-            expert_agents=expert_agents,
-            country_research=state["country_research"]
+        # Use the execute_experts_parallel helper from expert_agents module
+        result = await execute_experts_parallel(
+            state=state,
+            countries=state["countries"]
         )
 
         stage_duration = time.time() - stage_start
 
-        # Update state
-        state["expert_presentations"] = presentations
+        # Update state with results
+        state["expert_presentations"].update(result.get("expert_presentations", {}))
         state["execution_metadata"]["stage_timings"]["presentations"] = round(stage_duration, 2)
 
+        # Track errors
+        if result.get("errors"):
+            state["errors"].extend(result["errors"])
+
         logger.info(f"✅ Stage 2 complete in {stage_duration:.2f}s")
-        logger.info(f"   Generated {len(presentations)} presentations")
+        logger.info(f"   Generated {len(state['expert_presentations'])} presentations")
 
     except Exception as e:
         logger.error(f"Stage 2 failed: {str(e)}")
@@ -168,28 +167,26 @@ async def generate_rankings_node(state: Phase1GraphState) -> Phase1GraphState:
     logger.info("=" * 70)
 
     try:
-        # Create peer ranker agents
-        peer_agents = {}
-        for i in range(1, state["num_peer_rankers"] + 1):
-            peer = create_peer_ranker_agent(ranker_id=f"{i}")
-            peer_agents[f"peer_ranker_{i}"] = peer
+        logger.info(f"🚀 Creating {state['num_peer_rankers']} peer ranker agents...")
 
-        logger.info(f"🚀 Creating {len(peer_agents)} peer ranker agents...")
-
-        # Execute in parallel
-        rankings = await execute_peer_rankers_parallel(
-            peer_agents=peer_agents,
-            expert_presentations=state["expert_presentations"]
+        # Use the execute_peer_rankers_parallel helper from peer_ranking_agents module
+        result = await execute_peer_rankers_parallel(
+            state=state,
+            num_peers=state["num_peer_rankers"]
         )
 
         stage_duration = time.time() - stage_start
 
-        # Update state
-        state["peer_rankings"] = list(rankings.values())
+        # Update state with results
+        state["peer_rankings"].extend(result.get("peer_rankings", []))
         state["execution_metadata"]["stage_timings"]["rankings"] = round(stage_duration, 2)
 
+        # Track errors
+        if result.get("errors"):
+            state["errors"].extend(result["errors"])
+
         logger.info(f"✅ Stage 3 complete in {stage_duration:.2f}s")
-        logger.info(f"   Collected {len(rankings)} peer rankings")
+        logger.info(f"   Collected {len(state['peer_rankings'])} peer rankings")
 
     except Exception as e:
         logger.error(f"Stage 3 failed: {str(e)}")
@@ -207,11 +204,10 @@ def aggregate_rankings_node(state: Phase1GraphState) -> Phase1GraphState:
     logger.info("=" * 70)
 
     try:
-        # Import here to avoid circular imports
-        from business_units.ranking_team.aggregation_logic import aggregate_rankings
+        from business_units.ranking_team.aggregation_logic import aggregate_peer_rankings
 
-        # Aggregate rankings
-        aggregated = aggregate_rankings(
+        # Aggregate rankings using the existing function
+        aggregated = aggregate_peer_rankings(
             peer_rankings=state["peer_rankings"],
             method="hybrid"
         )
@@ -222,9 +218,10 @@ def aggregate_rankings_node(state: Phase1GraphState) -> Phase1GraphState:
         state["aggregated_ranking"] = aggregated
 
         # Extract consensus scores
-        consensus_scores = {}
-        for ranking in aggregated.get("final_rankings", []):
-            consensus_scores[ranking["country_code"]] = ranking["consensus_score"]
+        consensus_scores = {
+            r["country_code"]: r["consensus_score"]
+            for r in aggregated.get("final_rankings", [])
+        }
         state["consensus_scores"] = consensus_scores
 
         state["execution_metadata"]["stage_timings"]["aggregation"] = round(stage_duration, 2)
@@ -247,7 +244,6 @@ def generate_report_node(state: Phase1GraphState) -> Phase1GraphState:
     logger.info("=" * 70)
 
     try:
-        # Import here to avoid circular imports
         from business_units.insights_team.report_generator import generate_executive_report
 
         # Generate report (pass full state)
