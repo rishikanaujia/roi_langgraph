@@ -38,18 +38,13 @@ async def process_ranking_job(job_id: str):
 
     Args:
         job_id: Unique job identifier
-
-    This function:
-    1. Updates job status to RUNNING
-    2. Generates research data for countries
-    3. Runs Phase 1 LangGraph workflow
-    4. Extracts rankings from workflow results
-    5. Updates job with results or error
     """
 
     logger.info("=" * 70)
     logger.info(f"PROCESSING JOB: {job_id}")
     logger.info("=" * 70)
+
+    start_time = datetime.now()  # Track start time locally
 
     try:
         # Get job details
@@ -61,7 +56,7 @@ async def process_ranking_job(job_id: str):
         # Update status to RUNNING
         job_store.update_job(job_id, {
             "status": JobStatus.RUNNING,
-            "started_at": datetime.now().isoformat()
+            "started_at": start_time.isoformat()
         })
 
         logger.info(f"Job {job_id} started")
@@ -95,44 +90,36 @@ async def process_ranking_job(job_id: str):
             for error in workflow_result["errors"]:
                 logger.warning(f"  - {error}")
 
-        # Update progress: Presentations complete
+        # Update progress stages
         if workflow_result.get("expert_presentations"):
             job_store.update_progress(job_id, "presentations", "complete")
             logger.info(f"Generated {len(workflow_result['expert_presentations'])} presentations")
 
-        # Update progress: Rankings
         if workflow_result.get("peer_rankings"):
             job_store.update_progress(job_id, "rankings", "in_progress")
             logger.info(f"Collected {len(workflow_result['peer_rankings'])} peer rankings")
 
-        # Update progress: Rankings complete
         job_store.update_progress(job_id, "rankings", "complete")
 
-        # Update progress: Aggregation
-        job_store.update_progress(job_id, "aggregation", "in_progress")
-
-        # Update progress: Aggregation complete
         if workflow_result.get("aggregated_ranking"):
+            job_store.update_progress(job_id, "aggregation", "in_progress")
             job_store.update_progress(job_id, "aggregation", "complete")
             logger.info("Rankings aggregated successfully")
 
-        # Update progress: Report generation
-        job_store.update_progress(job_id, "report_generation", "in_progress")
-
         if workflow_result.get("report_markdown"):
+            job_store.update_progress(job_id, "report_generation", "in_progress")
             job_store.update_progress(job_id, "report_generation", "complete")
             logger.info(f"Report generated: {len(workflow_result['report_markdown'])} chars")
 
-        # Extract rankings from workflow result
+        # Extract rankings
         rankings = _extract_rankings(workflow_result)
 
         # Get report path
         report_path = workflow_result.get("report_metadata", {}).get("filepath", "")
 
-        # Calculate duration
-        started_at = datetime.fromisoformat(job["started_at"])
+        # Calculate duration using local start_time
         completed_at = datetime.now()
-        duration = (completed_at - started_at).total_seconds()
+        duration = (completed_at - start_time).total_seconds()
 
         # Update job with success
         job_store.update_job(job_id, {
