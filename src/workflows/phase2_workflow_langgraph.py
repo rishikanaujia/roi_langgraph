@@ -253,9 +253,11 @@ async def aggregate_rankings_node(state: Phase2State) -> Dict[str, Any]:
         logger.info("")
 
         # ✅ Set final_ranking here so it's available even if debate is skipped
+        # ✅ Set debate_triggered to False by default - will be overwritten if debate runs
         return {
             "aggregated_ranking": aggregated_ranking,
             "final_ranking": aggregated_ranking.get("final_rankings", []),
+            "debate_triggered": False,  # ✅ CRITICAL FIX - Set default value
             "stage_timings": {"aggregation": duration}
         }
 
@@ -266,6 +268,7 @@ async def aggregate_rankings_node(state: Phase2State) -> Dict[str, Any]:
         return {
             "aggregated_ranking": None,
             "final_ranking": [],
+            "debate_triggered": False,  # ✅ ALSO SET IN ERROR CASE
             "errors": [f"Aggregation error: {str(e)}"],
             "stage_timings": {"aggregation": duration}
         }
