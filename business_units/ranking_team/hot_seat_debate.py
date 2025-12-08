@@ -583,7 +583,14 @@ def should_trigger_debate(
         return False
 
     top_country = final_rankings[0]
-    agreement = top_country.get('agreement_level', 'unknown')
+
+    # Try to get agreement from multiple possible locations
+    agreement = (
+            top_country.get('agreement_level') or
+            top_country.get('agreement') or
+            aggregated_ranking.get('consensus_level') or
+            'unknown'
+    )
 
     # Define thresholds
     thresholds = {
@@ -596,6 +603,6 @@ def should_trigger_debate(
     skip_debate = agreement in thresholds.get(threshold, [])
 
     logger.info(f"Debate trigger check: agreement={agreement}, threshold={threshold}")
-    logger.info(f"Trigger debate: {not skip_debate}")
+    logger.info(f"Skip debate: {skip_debate}, Trigger debate: {not skip_debate}")
 
     return not skip_debate
