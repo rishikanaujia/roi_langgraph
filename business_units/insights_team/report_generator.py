@@ -5,7 +5,7 @@ Generates comprehensive markdown reports from workflow results.
 
 Author: Kanauija
 Date: 2024-12-08
-Updated: 2024-12-08 - Added Phase 2 support with debate section
+Updated: 2024-12-08 - Added Phase 2 support with debate section and fixed statistics extraction
 """
 
 import logging
@@ -166,10 +166,16 @@ def _generate_executive_summary(state: Dict[str, Any], workflow_type: str) -> st
     lines.append(
         f"- **Winner**: {winner['country_code']} ranked #1 with {winner.get('agreement_level', 'unknown')} peer agreement")
 
-    if debate_triggered:
-        lines.append(f"- **Debate Executed**: Hot seat debate with {debate_result.get('num_rounds', 'unknown')} rounds")
+    if debate_triggered and debate_result:
+        # Extract statistics properly (handle nested structure)
+        statistics = debate_result.get("statistics", {})
+        rounds = debate_result.get("rounds", [])
+        num_rounds = statistics.get("total_rounds", len(rounds))
+        recommendation = debate_result.get("recommendation", "")
+
+        lines.append(f"- **Debate Executed**: Hot seat debate with {num_rounds} rounds")
         lines.append(
-            f"- **Verdict**: {debate_result.get('verdict', 'UNKNOWN')} - {debate_result.get('recommendation', '')}")
+            f"- **Verdict**: {debate_result.get('verdict', 'UNKNOWN')} - {recommendation}")
 
     lines.append(f"- **Peer Consensus**: {len(peer_rankings)} independent peer agents evaluated all presentations")
     lines.append(f"- **Analysis Method**: Expert presentations followed by comparative peer ranking and aggregation")
@@ -241,10 +247,19 @@ def _generate_rankings_table(state: Dict[str, Any]) -> str:
 
 def _generate_debate_section(state: Dict[str, Any]) -> str:
     """Generate debate section (Phase 2 only)."""
-    debate_result = state.get("debate_result")
+    debate_result = state.get("debate_result", {})
     final_ranking = state.get("final_ranking", [])
 
+    # 🐛 DEBUG: Print the structure
+    import json
+    logger.info("=" * 70)
+    logger.info("DEBUG: debate_result keys: %s", list(debate_result.keys()))
+    logger.info("DEBUG: debate_result structure:")
+    logger.info(json.dumps(debate_result, indent=2, default=str))
+    logger.info("=" * 70)
+
     if not debate_result:
+        logger.warning("No debate_result found in state")
         return ""
 
     lines = ["## 🔥 Hot Seat Debate Analysis", ""]
@@ -276,44 +291,69 @@ def _generate_debate_section(state: Dict[str, Any]) -> str:
         lines.append("confirming the original ranking.")
     lines.append("")
 
+    # Extract statistics - handle both flat and nested structures
+    statistics = debate_result.get("statistics", {})
+    rounds = debate_result.get("rounds", [])
+
+    # Try nested structure first, then fall back to flat structure
+    total_rounds = statistics.get("total_rounds", len(rounds))
+    challenger_wins = statistics.get("challenger_wins", debate_result.get("challenger_wins", 0))
+    defender_wins = statistics.get("defender_wins", debate_result.get("defender_wins", 0))
+    avg_challenger_score = statistics.get("avg_challenger_score", debate_result.get("avg_challenger_score", 0.0))
+    avg_defender_score = statistics.get("avg_defender_score", debate_result.get("avg_defender_score", 0.0))
+
+    logger.info(f"Extracted debate stats: rounds={total_rounds}, challenger_wins={challenger_wins}, "
+                f"defender_wins={defender_wins}, avg_challenger={avg_challenger_score:.2f}, "
+                f"avg_defender={avg_defender_score:.2f}")
+
     # Statistics
     lines.append("### Debate Statistics")
     lines.append("")
-    lines.append(f"- **Total Rounds:** {len(debate_result.get('rounds', []))}")
-    lines.append(f"- **Challenger Wins:** {debate_result.get('challenger_wins', 0)}")
-    lines.append(f"- **Defender Wins:** {debate_result.get('defender_wins', 0)}")
-    lines.append(f"- **Average Challenger Score:** {debate_result.get('avg_challenger_score', 0):.2f}/10")
-    lines.append(f"- **Average Defender Score:** {debate_result.get('avg_defender_score', 0):.2f}/10")
+    lines.append(f"- **Total Rounds:** {total_rounds}")
+    lines.append(f"- **Challenger Wins:** {challenger_wins}")
+    lines.append(f"- **Defender Wins:** {defender_wins}")
+    lines.append(f"- **Average Challenger Score:** {avg_challenger_score:.2f}/10")
+    lines.append(f"- **Average Defender Score:** {avg_defender_score:.2f}/10")
     lines.append("")
 
     # Round-by-round
-    rounds = debate_result.get("rounds", [])
     if rounds:
         lines.append("### Round-by-Round Analysis")
         lines.append("")
 
         for i, round_data in enumerate(rounds, 1):
+            # Handle different possible structures for round data
+            judgment = round_data.get("judgment", {})
+            challenge = round_data.get("challenge", {})
+            defense = round_data.get("defense", {})
+
             lines.append(f"#### Round {i}")
             lines.append("")
-            lines.append(f"**Challenge Score:** {round_data.get('challenger_score', 0):.1f}/10")
-            lines.append(f"**Defense Score:** {round_data.get('defender_score', 0):.1f}/10")
-            lines.append(f"**Winner:** {round_data.get('winner', 'Unknown')}")
+
+            # Try to get scores from judgment first, then fall back to round_data
+            challenger_score = judgment.get("challenger_score", round_data.get("challenger_score", 0))
+            defender_score = judgment.get("defender_score", round_data.get("defender_score", 0))
+            winner = judgment.get("winner", round_data.get("winner", "Unknown"))
+
+            lines.append(f"**Challenge Score:** {challenger_score:.1f}/10")
+            lines.append(f"**Defense Score:** {defender_score:.1f}/10")
+            lines.append(f"**Winner:** {winner}")
             lines.append("")
 
             # Challenge argument (truncated)
-            challenge = round_data.get("challenge_argument", "")
-            if challenge and len(challenge) > 200:
-                challenge = challenge[:200] + "..."
-            if challenge:
-                lines.append(f"*Challenge:* {challenge}")
+            challenge_arg = challenge.get("argument", round_data.get("challenge_argument", ""))
+            if challenge_arg and len(challenge_arg) > 300:
+                challenge_arg = challenge_arg[:300] + "..."
+            if challenge_arg:
+                lines.append(f"*Challenge:* {challenge_arg}")
                 lines.append("")
 
             # Defense response (truncated)
-            defense = round_data.get("defense_response", "")
-            if defense and len(defense) > 200:
-                defense = defense[:200] + "..."
-            if defense:
-                lines.append(f"*Defense:* {defense}")
+            defense_arg = defense.get("argument", round_data.get("defense_response", ""))
+            if defense_arg and len(defense_arg) > 300:
+                defense_arg = defense_arg[:300] + "..."
+            if defense_arg:
+                lines.append(f"*Defense:* {defense_arg}")
                 lines.append("")
 
     lines.append("---")
@@ -449,7 +489,12 @@ def _generate_methodology(state: Dict[str, Any], workflow_type: str) -> str:
 
     if debate_triggered:
         debate_result = state.get("debate_result", {})
-        lines.append(f"**Debate Rounds:** {len(debate_result.get('rounds', []))}")
+        # Extract statistics properly
+        statistics = debate_result.get("statistics", {})
+        rounds = debate_result.get("rounds", [])
+        num_rounds = statistics.get("total_rounds", len(rounds))
+
+        lines.append(f"**Debate Rounds:** {num_rounds}")
         lines.append(f"**Debate Model:** GPT-4o with temperature 0.7")
 
     return "\n".join(lines)
