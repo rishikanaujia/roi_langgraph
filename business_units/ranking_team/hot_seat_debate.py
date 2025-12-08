@@ -557,24 +557,32 @@ async def execute_hot_seat_debate(
 
 
 def should_trigger_debate(
-        aggregated_ranking: List[Dict[str, Any]],
+        aggregated_ranking: Dict[str, Any],
         threshold: str = "medium"
 ) -> bool:
     """
     Determine if hot seat debate should be triggered based on consensus.
 
     Args:
-        aggregated_ranking: List of ranked countries with agreement levels
+        aggregated_ranking: Dict containing final_rankings and agreement levels
         threshold: Minimum agreement level to skip debate
                   ("very_high", "high", "medium", "low")
 
     Returns:
         True if debate should be triggered, False otherwise
     """
-    if not aggregated_ranking or len(aggregated_ranking) < 2:
+    # Extract final_rankings from dict
+    if not aggregated_ranking or not isinstance(aggregated_ranking, dict):
+        logger.info("Debate trigger check: No valid aggregated ranking")
         return False
 
-    top_country = aggregated_ranking[0]
+    final_rankings = aggregated_ranking.get("final_rankings", [])
+
+    if not final_rankings or len(final_rankings) < 2:
+        logger.info("Debate trigger check: Need at least 2 countries")
+        return False
+
+    top_country = final_rankings[0]
     agreement = top_country.get('agreement_level', 'unknown')
 
     # Define thresholds

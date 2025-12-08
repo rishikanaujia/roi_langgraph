@@ -237,10 +237,10 @@ async def aggregate_rankings_node(state: Phase2State) -> Dict[str, Any]:
     peer_rankings = state["peer_rankings"]
 
     try:
-        # Aggregate rankings
+        # Aggregate rankings - use 'method' not 'aggregation_method'
         aggregated_ranking = aggregate_peer_rankings(
             peer_rankings=peer_rankings,
-            aggregation_method="hybrid"
+            method="hybrid"
         )
 
         duration = time.time() - start_time
