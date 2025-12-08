@@ -13,15 +13,17 @@ Key Features:
 
 Author: Kanauija
 Date: 2024-12-08
+Updated: 2024-12-08 - Refactored to use Azure OpenAI
 """
 
 import asyncio
 import logging
 import time
+import os
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
-from openai import AsyncOpenAI
+from openai import AsyncAzureOpenAI
 
 # Configure logging
 logging.basicConfig(
@@ -30,8 +32,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger("HotSeatDebate")
 
-# Initialize OpenAI client
-client = AsyncOpenAI()
+# Azure OpenAI Configuration
+AZURE_OPENAI_KEY = os.environ.get("AZURE_OPENAI_KEY")
+AZURE_ENDPOINT = os.environ.get("AZURE_ENDPOINT", "https://sparkapi.spglobal.com/v1/sparkassist")
+AZURE_DEPLOYMENT = os.environ.get("AZURE_DEPLOYMENT", "gpt-4o-mini")
+AZURE_API_VERSION = os.environ.get("AZURE_API_VERSION", "2024-02-01")
+
+# Initialize Azure OpenAI client
+client = AsyncAzureOpenAI(
+    azure_endpoint=AZURE_ENDPOINT,
+    api_key=AZURE_OPENAI_KEY,
+    api_version=AZURE_API_VERSION
+)
 
 
 class HotSeatDebate:
@@ -44,7 +56,7 @@ class HotSeatDebate:
 
     def __init__(
             self,
-            model: str = "gpt-4o",
+            deployment_name: Optional[str] = None,
             temperature: float = 0.7,
             max_retries: int = 3
     ):
@@ -52,16 +64,16 @@ class HotSeatDebate:
         Initialize the Hot Seat Debate system.
 
         Args:
-            model: OpenAI model to use for debate agents
+            deployment_name: Azure deployment name (uses env var if None)
             temperature: Temperature for LLM responses (higher = more creative)
             max_retries: Maximum retry attempts for API calls
         """
-        self.model = model
+        self.deployment_name = deployment_name or AZURE_DEPLOYMENT
         self.temperature = temperature
         self.max_retries = max_retries
 
         logger.info("Hot Seat Debate system initialized")
-        logger.info(f"Model: {model}, Temperature: {temperature}")
+        logger.info(f"Azure Deployment: {self.deployment_name}, Temperature: {temperature}")
 
     async def execute_debate(
             self,
@@ -132,7 +144,8 @@ class HotSeatDebate:
             "execution_metadata": {
                 "num_challengers": num_challengers,
                 "duration_seconds": round(duration, 2),
-                "model": self.model,
+                "model": self.deployment_name,
+                "azure_endpoint": AZURE_ENDPOINT,
                 "timestamp": datetime.now().isoformat()
             }
         }
@@ -286,9 +299,9 @@ Respond in JSON format:
     "strength_score": 8.5  // How strong is your case (0-10)
 }}"""
 
-        # Call OpenAI
+        # Call Azure OpenAI
         response = await client.chat.completions.create(
-            model=self.model,
+            model=self.deployment_name,
             messages=[
                 {
                     "role": "system",
@@ -370,7 +383,7 @@ Respond in JSON format:
 }}"""
 
         response = await client.chat.completions.create(
-            model=self.model,
+            model=self.deployment_name,
             messages=[
                 {
                     "role": "system",
@@ -435,7 +448,7 @@ Respond in JSON format:
 }}"""
 
         response = await client.chat.completions.create(
-            model=self.model,
+            model=self.deployment_name,
             messages=[
                 {
                     "role": "system",
@@ -536,14 +549,22 @@ async def execute_hot_seat_debate(
         expert_presentations: List[Dict[str, Any]],
         peer_rankings: List[Dict[str, Any]],
         num_challengers: int = 2,
-        model: str = "gpt-4o"
+        deployment_name: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Convenience function to execute a hot seat debate.
 
     Used by LangGraph workflow nodes.
+
+    Args:
+        top_ranked_country: Top-ranked country data
+        runner_up_country: Runner-up country data
+        expert_presentations: Expert presentations
+        peer_rankings: Peer rankings
+        num_challengers: Number of challengers
+        deployment_name: Azure deployment name (uses env var if None)
     """
-    debate_system = HotSeatDebate(model=model)
+    debate_system = HotSeatDebate(deployment_name=deployment_name)
 
     result = await debate_system.execute_debate(
         top_ranked_country=top_ranked_country,

@@ -2,6 +2,8 @@
 Phase 1 Rankings REST API
 
 Main application entry point.
+
+Updated: 2024-12-08 - Updated for Azure OpenAI configuration display
 """
 
 import logging
@@ -34,8 +36,17 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 70)
     logger.info(f"API Documentation: http://{settings.host}:{settings.port}/docs")
     logger.info(f"Health Check: http://{settings.host}:{settings.port}/api/v1/health")
-    logger.info(f"OpenAI Model: {settings.openai_model}")
+    logger.info("=" * 70)
+    logger.info("Azure OpenAI Configuration:")
+    logger.info(f"  Endpoint: {settings.azure_openai_endpoint}")
+    logger.info(f"  Deployment: {settings.azure_openai_deployment}")
+    logger.info(f"  API Version: {settings.azure_openai_api_version}")
+    logger.info(f"  Temperature: {settings.azure_openai_temperature}")
+    logger.info("=" * 70)
     logger.info(f"Reports Directory: {settings.reports_dir}")
+    logger.info(f"Data Directory: {settings.data_dir}")
+    logger.info(f"Environment: {settings.environment}")
+    logger.info(f"Debug Mode: {settings.debug}")
     logger.info("=" * 70)
 
     # Hand control back to FastAPI (app is running here)

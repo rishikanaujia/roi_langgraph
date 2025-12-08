@@ -5,6 +5,8 @@ Loads configuration from environment variables with sensible defaults.
 Uses Pydantic BaseSettings for validation and type safety.
 
 Environment variables can be set in .env file or system environment.
+
+Updated: 2024-12-08 - Refactored for Azure OpenAI support
 """
 
 import os
@@ -19,7 +21,7 @@ class Settings(BaseSettings):
     Application settings loaded from environment variables.
 
     All settings can be overridden via .env file or environment variables.
-    Use uppercase with underscores (e.g., API_TITLE, OPENAI_API_KEY).
+    Use uppercase with underscores (e.g., API_TITLE, AZURE_OPENAI_KEY).
     """
 
     # ========================================================================
@@ -37,7 +39,7 @@ class Settings(BaseSettings):
     )
 
     api_description: str = Field(
-        default="Multi-agent AI system for ranking renewable energy investment opportunities using LangGraph",
+        default="Multi-agent AI system for ranking renewable energy investment opportunities using LangGraph and Azure OpenAI",
         description="API description shown in documentation"
     )
 
@@ -105,32 +107,53 @@ class Settings(BaseSettings):
     )
 
     # ========================================================================
-    # OpenAI Configuration
+    # Azure OpenAI Configuration
     # ========================================================================
 
-    openai_api_key: str = Field(
+    azure_openai_key: str = Field(
         default="",
-        description="OpenAI API key (required)"
+        description="Azure OpenAI API key (required)"
     )
 
-    openai_model: str = Field(
-        default="gpt-4o",
-        description="OpenAI model to use for agents"
+    azure_openai_endpoint: str = Field(
+        default="https://sparkapi.spglobal.com/v1/sparkassist",
+        description="Azure OpenAI endpoint URL"
     )
 
-    openai_temperature: float = Field(
+    azure_openai_deployment: str = Field(
+        default="gpt-4o-mini",
+        description="Azure OpenAI deployment name"
+    )
+
+    azure_openai_api_version: str = Field(
+        default="2024-02-01",
+        description="Azure OpenAI API version"
+    )
+
+    azure_openai_temperature: float = Field(
         default=0.7,
-        description="Temperature for OpenAI models"
+        description="Temperature for Azure OpenAI models"
     )
 
-    openai_max_retries: int = Field(
+    azure_openai_max_retries: int = Field(
         default=3,
-        description="Maximum retries for OpenAI API calls"
+        description="Maximum retries for Azure OpenAI API calls"
     )
 
-    openai_timeout: int = Field(
+    azure_openai_timeout: int = Field(
         default=120,
-        description="Timeout for OpenAI API calls (seconds)"
+        description="Timeout for Azure OpenAI API calls (seconds)"
+    )
+
+    # Backward compatibility (deprecated - use azure_* fields)
+    openai_api_key: Optional[str] = Field(
+        default=None,
+        description="[DEPRECATED] Use azure_openai_key instead"
+    )
+
+    openai_model: Optional[str] = Field(
+        default=None,
+        description="[DEPRECATED] Use azure_openai_deployment instead"
     )
 
     # ========================================================================
@@ -279,70 +302,46 @@ class Settings(BaseSettings):
     )
 
     # ========================================================================
-    # Security Configuration
-    # ========================================================================
-
-    secret_key: str = Field(
-        default="your-secret-key-change-in-production",
-        description="Secret key for JWT tokens and encryption"
-    )
-
-    access_token_expire_minutes: int = Field(
-        default=30,
-        description="JWT access token expiration (minutes)"
-    )
-
-    enable_api_key_auth: bool = Field(
-        default=False,
-        description="Enable API key authentication"
-    )
-
-    api_keys: List[str] = Field(
-        default=[],
-        description="Valid API keys (comma-separated in env)"
-    )
-
-    # ========================================================================
     # Feature Flags
     # ========================================================================
 
     enable_langgraph: bool = Field(
         default=True,
-        description="Use LangGraph workflow (vs legacy workflow)"
+        description="Enable LangGraph workflows"
     )
 
     enable_phase2: bool = Field(
-        default=False,
-        description="Enable Phase 2 hot seat feature"
-    )
-
-    enable_checkpointing: bool = Field(
-        default=False,
-        description="Enable LangGraph checkpointing"
-    )
-
-    enable_streaming: bool = Field(
-        default=False,
-        description="Enable streaming responses"
+        default=True,
+        description="Enable Phase 2 (hot seat debate)"
     )
 
     enable_caching: bool = Field(
-        default=True,
-        description="Enable response caching"
+        default=False,
+        description="Enable result caching"
     )
 
-    cache_ttl_seconds: int = Field(
+    cache_ttl: int = Field(
         default=3600,
-        description="Cache TTL in seconds (1 hour default)"
+        description="Cache TTL (seconds)"
+    )
+
+    enable_api_keys: bool = Field(
+        default=False,
+        description="Require API keys for endpoints"
+    )
+
+    api_keys: List[str] = Field(
+        default=[],
+        description="Valid API keys (if enabled)"
     )
 
     # ========================================================================
-    # Advanced Configuration
+    # Agent Configuration
     # ========================================================================
 
-    async_mode: bool = Field(
+    agent_registry_enabled: bool = Field(
         default=True,
-        description="Use async execution for workflows"
+        description="Use agent registry system"
     )
 
     parallel_execution: bool = Field(
@@ -391,15 +390,23 @@ class Settings(BaseSettings):
             raise ValueError(f"Storage backend must be one of: {valid_backends}")
         return v.lower()
 
-    @field_validator('openai_api_key')
+    @field_validator('azure_openai_key')
     @classmethod
-    def validate_openai_key(cls, v: str) -> str:
-        """Validate OpenAI API key is set."""
+    def validate_azure_openai_key(cls, v: str) -> str:
+        """Validate Azure OpenAI API key is set."""
         if not v or v == "":
             raise ValueError(
-                "OPENAI_API_KEY must be set. "
-                "Get your key from https://platform.openai.com/api-keys"
+                "AZURE_OPENAI_KEY must be set. "
+                "Get your key from Azure Portal > Azure OpenAI Service > Keys and Endpoint"
             )
+        return v
+
+    @field_validator('azure_openai_endpoint')
+    @classmethod
+    def validate_azure_endpoint(cls, v: str) -> str:
+        """Validate Azure endpoint URL format."""
+        if not v.startswith(('https://', 'http://')):
+            raise ValueError("Azure endpoint must be a valid URL starting with https:// or http://")
         return v
 
     @field_validator('min_countries', 'max_countries')
@@ -458,14 +465,36 @@ class Settings(BaseSettings):
         }
 
     @property
-    def openai_config(self) -> dict:
-        """Get OpenAI configuration as dict."""
+    def azure_openai_config(self) -> dict:
+        """Get Azure OpenAI configuration as dict."""
         return {
-            "api_key": self.openai_api_key,
-            "model": self.openai_model,
-            "temperature": self.openai_temperature,
-            "max_retries": self.openai_max_retries,
-            "timeout": self.openai_timeout
+            "azure_endpoint": self.azure_openai_endpoint,
+            "api_key": self.azure_openai_key,
+            "api_version": self.azure_openai_api_version,
+            "azure_deployment": self.azure_openai_deployment,
+            "temperature": self.azure_openai_temperature,
+            "max_retries": self.azure_openai_max_retries,
+            "timeout": self.azure_openai_timeout
+        }
+
+    @property
+    def openai_config(self) -> dict:
+        """
+        [DEPRECATED] Get OpenAI configuration as dict.
+        Use azure_openai_config instead.
+
+        Provided for backward compatibility.
+        """
+        # Map to Azure config for backward compatibility
+        return {
+            "api_key": self.azure_openai_key,
+            "model": self.azure_openai_deployment,
+            "temperature": self.azure_openai_temperature,
+            "max_retries": self.azure_openai_max_retries,
+            "timeout": self.azure_openai_timeout,
+            # Add Azure-specific fields
+            "azure_endpoint": self.azure_openai_endpoint,
+            "api_version": self.azure_openai_api_version
         }
 
     # ========================================================================
@@ -495,6 +524,7 @@ class Settings(BaseSettings):
         # Hide sensitive values
         if hide_secrets:
             sensitive_keys = [
+                'azure_openai_key',
                 'openai_api_key',
                 'secret_key',
                 'api_keys'
@@ -507,7 +537,13 @@ class Settings(BaseSettings):
         sections = {
             "API": ['api_title', 'api_version', 'environment', 'debug'],
             "Server": ['host', 'port', 'workers', 'log_level'],
-            "OpenAI": ['openai_model', 'openai_temperature', 'openai_api_key'],
+            "Azure OpenAI": [
+                'azure_openai_endpoint',
+                'azure_openai_deployment',
+                'azure_openai_api_version',
+                'azure_openai_temperature',
+                'azure_openai_key'
+            ],
             "Job Limits": ['min_countries', 'max_countries', 'min_peer_rankers', 'max_peer_rankers'],
             "Storage": ['storage_backend', 'redis_url', 'max_jobs_in_memory'],
             "Features": ['enable_langgraph', 'enable_phase2', 'enable_caching']
@@ -521,6 +557,59 @@ class Settings(BaseSettings):
                     print(f"  {key}: {value}")
 
         print("\n" + "=" * 70)
+
+    def get_env_template(self) -> str:
+        """Generate .env template file content."""
+        template = """# Azure OpenAI Configuration (REQUIRED)
+AZURE_OPENAI_KEY=your-azure-openai-key-here
+AZURE_OPENAI_ENDPOINT=https://sparkapi.spglobal.com/v1/sparkassist
+AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini
+AZURE_OPENAI_API_VERSION=2024-02-01
+AZURE_OPENAI_TEMPERATURE=0.7
+
+# API Configuration
+API_TITLE=Renewable Opportunity Identifier API
+API_VERSION=1.0.0
+ENVIRONMENT=development
+DEBUG=false
+
+# Server Configuration
+HOST=0.0.0.0
+PORT=8000
+RELOAD=true
+LOG_LEVEL=info
+WORKERS=1
+
+# Job Configuration
+MAX_COUNTRIES=15
+MIN_COUNTRIES=2
+DEFAULT_PEER_RANKERS=3
+MAX_PEER_RANKERS=5
+MIN_PEER_RANKERS=2
+JOB_TIMEOUT_SECONDS=300
+
+# Storage Configuration
+STORAGE_BACKEND=memory
+MAX_JOBS_IN_MEMORY=1000
+
+# Redis Configuration (if using redis backend)
+REDIS_URL=redis://localhost:6379/0
+REDIS_KEY_PREFIX=roi:job:
+REDIS_TTL=86400
+
+# Feature Flags
+ENABLE_LANGGRAPH=true
+ENABLE_PHASE2=true
+ENABLE_CACHING=false
+PARALLEL_EXECUTION=true
+
+# Directories
+REPORTS_DIR=reports
+DATA_DIR=data
+LOGS_DIR=logs
+TEMP_DIR=temp
+"""
+        return template
 
     # ========================================================================
     # Pydantic Config
@@ -550,6 +639,7 @@ def get_settings() -> Settings:
         >>> from api.config import get_settings
         >>> settings = get_settings()
         >>> print(settings.api_title)
+        >>> print(settings.azure_openai_config)
     """
     settings = Settings()
 
@@ -599,7 +689,7 @@ def get_testing_settings() -> Settings:
         log_level="error",
         enable_mock_mode=True,
         storage_backend="memory",
-        openai_api_key="test-key-not-used",
+        azure_openai_key="test-key-not-used",
         job_timeout_seconds=10
     )
 

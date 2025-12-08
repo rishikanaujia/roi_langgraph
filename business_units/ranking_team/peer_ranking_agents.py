@@ -10,6 +10,8 @@ Each peer:
 4. Acts independently (different perspectives)
 
 Multiple peers create diversity in rankings that gets aggregated later.
+
+UPDATED: Refactored to use AzureChatOpenAI instead of ChatOpenAI
 """
 
 import os
@@ -17,7 +19,7 @@ import logging
 from typing import Dict, Any, List
 from datetime import datetime
 
-from langchain_openai import ChatOpenAI
+from langchain_openai import AzureChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
@@ -44,10 +46,18 @@ if not logger.handlers:
 # Configuration
 # ============================================================================
 
-llm = ChatOpenAI(
-    model="gpt-4o",
+# Azure OpenAI Configuration
+AZURE_OPENAI_KEY = os.environ.get("AZURE_OPENAI_KEY")
+AZURE_ENDPOINT = os.environ.get("AZURE_ENDPOINT", "https://sparkapi.spglobal.com/v1/sparkassist")
+AZURE_DEPLOYMENT = os.environ.get("AZURE_DEPLOYMENT", "gpt-4o-mini")
+AZURE_API_VERSION = os.environ.get("AZURE_API_VERSION", "2024-02-01")
+
+llm = AzureChatOpenAI(
+    azure_endpoint=AZURE_ENDPOINT,
+    azure_deployment=AZURE_DEPLOYMENT,
+    openai_api_version=AZURE_API_VERSION,
+    api_key=AZURE_OPENAI_KEY,
     temperature=0.3,  # Lower for consistent ranking
-    api_key=os.environ.get("OPENAI_API_KEY"),
     max_retries=3,
     request_timeout=120
 )
@@ -324,7 +334,8 @@ def create_peer_ranker_agent(ranker_id: int):
                         "top_choice": ranking_dict["rankings"][0]["country_code"],
                         "generation_time_seconds": round(duration, 2),
                         "timestamp": end_time.isoformat(),
-                        "model": "gpt-4o"
+                        "model": AZURE_DEPLOYMENT,
+                        "azure_endpoint": AZURE_ENDPOINT
                     }
                 }
             }
