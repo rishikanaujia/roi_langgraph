@@ -250,8 +250,10 @@ async def aggregate_rankings_node(state: Phase2State) -> Dict[str, Any]:
         logger.info(f"   Consensus level: {aggregated_ranking.get('consensus_level', 'unknown')}")
         logger.info("")
 
+        # ✅ FIX: Set final_ranking here so it's available even if debate is skipped
         return {
             "aggregated_ranking": aggregated_ranking,
+            "final_ranking": aggregated_ranking.get("final_rankings", []),
             "stage_timings": {"aggregation": duration}
         }
 
@@ -261,6 +263,7 @@ async def aggregate_rankings_node(state: Phase2State) -> Dict[str, Any]:
 
         return {
             "aggregated_ranking": None,
+            "final_ranking": [],
             "errors": [f"Aggregation error: {str(e)}"],
             "stage_timings": {"aggregation": duration}
         }
@@ -275,7 +278,7 @@ async def hot_seat_debate_node(state: Phase2State) -> Dict[str, Any]:
     2. At least 2 countries exist
     3. Consensus is below threshold
 
-    Otherwise, this node just sets final_ranking = aggregated_ranking
+    This node OVERWRITES final_ranking if debate is executed.
     """
     start_time = time.time()
 
@@ -295,30 +298,11 @@ async def hot_seat_debate_node(state: Phase2State) -> Dict[str, Any]:
         return {
             "debate_triggered": False,
             "debate_result": None,
-            "final_ranking": [],
             "stage_timings": {"debate": duration}
         }
 
     final_rankings = aggregated_ranking.get("final_rankings", [])
     debate_threshold = state.get("debate_threshold", "high")
-
-    # Check if debate should be triggered
-    should_debate = (
-            debate_enabled and
-            len(final_rankings) >= 2 and
-            should_trigger_debate(aggregated_ranking, threshold=debate_threshold)
-    )
-
-    if not should_debate:
-        logger.info("⏭️  Debate not triggered - using aggregated ranking")
-        duration = time.time() - start_time
-
-        return {
-            "debate_triggered": False,
-            "debate_result": None,
-            "final_ranking": final_rankings,
-            "stage_timings": {"debate": duration}
-        }
 
     # Execute debate
     logger.info("🔥 Executing hot seat debate...")
@@ -381,7 +365,7 @@ async def hot_seat_debate_node(state: Phase2State) -> Dict[str, Any]:
         return {
             "debate_triggered": True,
             "debate_result": debate_result,
-            "final_ranking": final_ranking,
+            "final_ranking": final_ranking,  # ✅ Overwrites the one from aggregation
             "stage_timings": {"debate": duration}
         }
 
@@ -389,11 +373,10 @@ async def hot_seat_debate_node(state: Phase2State) -> Dict[str, Any]:
         logger.error(f"Debate execution failed: {str(e)}")
         duration = time.time() - start_time
 
-        # Fallback to original ranking
+        # Fallback to original ranking (already in state from aggregation node)
         return {
             "debate_triggered": True,
             "debate_result": {"error": str(e)},
-            "final_ranking": final_rankings,
             "errors": [f"Debate error: {str(e)}"],
             "stage_timings": {"debate": duration}
         }
@@ -493,6 +476,9 @@ def build_phase2_workflow() -> StateGraph:
                                            debate         report
                                               ↓              ↓
                                            report          END
+
+    Note: final_ranking is set in aggregation node and optionally
+          overwritten by debate node if debate is triggered.
     """
     # Create workflow
     workflow = StateGraph(Phase2State)

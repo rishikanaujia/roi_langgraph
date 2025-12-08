@@ -563,13 +563,11 @@ def should_trigger_debate(
     """
     Determine if hot seat debate should be triggered based on consensus.
 
-    Args:
-        aggregated_ranking: Dict containing final_rankings and agreement levels
-        threshold: Minimum agreement level to skip debate
-                  ("very_high", "high", "medium", "low")
-
-    Returns:
-        True if debate should be triggered, False otherwise
+    Threshold interpretation:
+    - 'very_high': Very strict - triggers debate even with very_high agreement
+    - 'high': Strict - skips debate only with very_high agreement
+    - 'medium': Moderate - skips debate with high or very_high agreement
+    - 'low': Lenient - skips debate with medium/high/very_high agreement
     """
     # Extract final_rankings from dict
     if not aggregated_ranking or not isinstance(aggregated_ranking, dict):
@@ -584,20 +582,31 @@ def should_trigger_debate(
 
     top_country = final_rankings[0]
 
-    # Try to get agreement from multiple possible locations
-    agreement = (
-            top_country.get('agreement_level') or
-            top_country.get('agreement') or
-            aggregated_ranking.get('consensus_level') or
-            'unknown'
-    )
+    # ✅ Extract agreement from nested peer_agreement
+    agreement = None
 
-    # Define thresholds
+    # Check peer_agreement dict first (this is where it actually is!)
+    peer_agreement = top_country.get('peer_agreement', {})
+    if isinstance(peer_agreement, dict) and 'agreement_level' in peer_agreement:
+        agreement = peer_agreement['agreement_level']
+
+    # Fallback checks
+    if agreement is None:
+        if 'agreement' in top_country:
+            agreement = top_country['agreement']
+        elif 'agreement_level' in top_country:
+            agreement = top_country['agreement_level']
+        elif 'consensus_level' in aggregated_ranking:
+            agreement = aggregated_ranking['consensus_level']
+        else:
+            agreement = 'unknown'
+
+    # ✅ INVERTED threshold logic - higher threshold = more strict = more likely to debate
     thresholds = {
-        "very_high": ["very_high"],
-        "high": ["very_high", "high"],
-        "medium": ["very_high", "high", "medium"],
-        "low": ["very_high", "high", "medium", "low"]
+        "very_high": [],  # NEVER skip (always debate)
+        "high": ["very_high"],  # Skip ONLY if very_high
+        "medium": ["very_high", "high"],  # Skip if high or very_high
+        "low": ["very_high", "high", "medium"]  # Skip if medium or better
     }
 
     skip_debate = agreement in thresholds.get(threshold, [])

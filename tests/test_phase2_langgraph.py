@@ -121,6 +121,10 @@ async def test_phase2_with_debate_triggered():
 
     logger.info(f"✓ Total duration: {metadata['total_duration_seconds']:.2f}s")
 
+    # Verify debate stage timing exists (debate was executed)
+    assert "debate" in metadata["stage_timings"]
+    logger.info(f"✓ Debate stage executed: {metadata['stage_timings']['debate']:.2f}s")
+
     # Log stage timings
     logger.info("\nStage Timings:")
     for stage, duration in metadata["stage_timings"].items():
@@ -190,9 +194,26 @@ async def test_phase2_debate_skipped():
     # Check execution metadata
     metadata = result["execution_metadata"]
     assert metadata["debate_triggered"] == False
-    assert "debate" in metadata["stage_timings"]  # Debate stage ran but was skipped
+
+    # ✅ FIX: When debate is skipped via conditional edge, the debate node is NEVER executed
+    # Therefore, there should be NO "debate" key in stage_timings
+    assert "debate" not in metadata["stage_timings"], "Debate node should be bypassed when skipped"
+    logger.info(f"✓ Debate node bypassed (not in stage_timings)")
+
+    # Verify other stages ran
+    assert "research" in metadata["stage_timings"]
+    assert "presentations" in metadata["stage_timings"]
+    assert "rankings" in metadata["stage_timings"]
+    assert "aggregation" in metadata["stage_timings"]
+    assert "report" in metadata["stage_timings"]
+    logger.info(f"✓ All other stages executed successfully")
 
     logger.info(f"✓ Total duration: {metadata['total_duration_seconds']:.2f}s")
+
+    # Log stage timings
+    logger.info("\nStage Timings:")
+    for stage, duration in metadata["stage_timings"].items():
+        logger.info(f"  {stage}: {duration:.2f}s")
 
     # Log final rankings
     logger.info("\nFinal Rankings:")
@@ -252,7 +273,16 @@ async def test_phase2_debate_disabled():
     assert metadata["debate_enabled"] == False
     assert metadata["debate_triggered"] == False
 
+    # Debate node should be bypassed
+    assert "debate" not in metadata["stage_timings"]
+    logger.info(f"✓ Debate node bypassed (debate disabled)")
+
     logger.info(f"✓ Total duration: {metadata['total_duration_seconds']:.2f}s")
+
+    # Log final rankings
+    logger.info("\nFinal Rankings:")
+    for r in result["final_ranking"]:
+        logger.info(f"  {r['rank']}. {r['country_code']} - Score: {r['consensus_score']}/10")
 
     # Check for errors
     assert len(result.get("errors", [])) == 0, f"Workflow had errors: {result['errors']}"
@@ -303,6 +333,14 @@ async def test_phase2_with_two_countries():
 
     if result["debate_triggered"]:
         logger.info(f"✓ Debate verdict: {result['debate_result']['verdict']}")
+        assert "debate" in result["execution_metadata"]["stage_timings"]
+    else:
+        assert "debate" not in result["execution_metadata"]["stage_timings"]
+
+    # Log final rankings
+    logger.info("\nFinal Rankings:")
+    for r in result["final_ranking"]:
+        logger.info(f"  {r['rank']}. {r['country_code']} - Score: {r['consensus_score']}/10")
 
     # Check for errors
     assert len(result.get("errors", [])) == 0, f"Workflow had errors: {result['errors']}"
