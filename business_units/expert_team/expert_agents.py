@@ -7,7 +7,7 @@ Each country gets a dedicated expert agent that:
 3. Builds compelling presentation
 4. Provides structured recommendations
 
-Uses GPT-4 for intelligent analysis.
+UPDATED: Refactored to use AzureChatOpenAI instead of ChatOpenAI
 """
 
 import os
@@ -15,7 +15,7 @@ import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from langchain_openai import ChatOpenAI
+from langchain_openai import AzureChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
@@ -43,10 +43,18 @@ if not logger.handlers:
 # Configuration
 # ============================================================================
 
-llm = ChatOpenAI(
-    model="gpt-4o",
+# Azure OpenAI Configuration
+AZURE_OPENAI_KEY = os.environ.get("AZURE_OPENAI_KEY")
+AZURE_ENDPOINT = os.environ.get("AZURE_ENDPOINT", "https://sparkapi.spglobal.com/v1/sparkassist")
+AZURE_DEPLOYMENT = os.environ.get("AZURE_DEPLOYMENT", "gpt-4o-mini")
+AZURE_API_VERSION = os.environ.get("AZURE_API_VERSION", "2024-02-01")
+
+llm = AzureChatOpenAI(
+    azure_endpoint=AZURE_ENDPOINT,
+    azure_deployment=AZURE_DEPLOYMENT,
+    openai_api_version=AZURE_API_VERSION,
+    api_key=AZURE_OPENAI_KEY,
     temperature=0.7,  # Higher for creative presentation
-    api_key=os.environ.get("OPENAI_API_KEY"),
     max_retries=3,
     request_timeout=120
 )
@@ -250,7 +258,8 @@ def create_expert_agent(country_code: str, expert_id: int = 1):
                         "expert_id": f"expert_{country_code.lower()}_{expert_id}",
                         "generation_time_seconds": round(duration, 2),
                         "timestamp": end_time.isoformat(),
-                        "model": "gpt-4o",
+                        "model": AZURE_DEPLOYMENT,
+                        "azure_endpoint": AZURE_ENDPOINT,
                         "research_length": len(research_text)
                     }
                 }
