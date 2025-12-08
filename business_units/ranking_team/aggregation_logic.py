@@ -12,6 +12,10 @@ Also calculates:
 - Score variance (agreement level)
 - Peer consensus metrics
 - Tie-breaking logic
+
+Author: Kanauija
+Date: 2024-12-08
+Updated: 2024-12-08 - Flattened agreement_level fields for easier access
 """
 
 import logging
@@ -169,7 +173,7 @@ def calculate_peer_agreement(
     rank_var = stdev(ranks) if len(ranks) > 1 else 0.0
     score_var = stdev(scores) if len(scores) > 1 else 0.0
 
-    # Classify agreement
+    # Classify agreement based on rank variance
     if rank_var <= 0.5:
         agreement = "very_high"
     elif rank_var <= 1.0:
@@ -239,13 +243,15 @@ def aggregate_peer_rankings(
         # Get peer agreement
         agreement = calculate_peer_agreement(peer_rankings, country_code)
 
-        # Get all peer scores for this country
-        peer_scores = [
-            country_rank['score']
-            for peer_ranking in peer_rankings
-            for country_rank in peer_ranking['rankings']
-            if country_rank['country_code'] == country_code
-        ]
+        # Get all peer scores and positions for this country
+        peer_scores = []
+        peer_positions = []
+
+        for peer_ranking in peer_rankings:
+            for country_rank in peer_ranking['rankings']:
+                if country_rank['country_code'] == country_code:
+                    peer_scores.append(country_rank['score'])
+                    peer_positions.append(country_rank['rank'])
 
         result = {
             "country_code": country_code,
@@ -254,6 +260,7 @@ def aggregate_peer_rankings(
             "score_stddev": average_scores[country_code][1],
             "median_rank": median_ranks.get(country_code, 0),
             "peer_scores": peer_scores,
+            "peer_positions": peer_positions,
             "peer_agreement": agreement
         }
 
@@ -278,6 +285,9 @@ def aggregate_peer_rankings(
     # Assign final ranks
     final_rankings = []
     for idx, result in enumerate(country_results, 1):
+        # Get peer agreement metrics
+        peer_agreement = result["peer_agreement"]
+
         final_rankings.append({
             "rank": idx,
             "country_code": result["country_code"],
@@ -287,7 +297,15 @@ def aggregate_peer_rankings(
             "borda_points": result["borda_points"],
             "median_rank": result["median_rank"],
             "peer_scores": result["peer_scores"],
-            "peer_agreement": result["peer_agreement"]
+            "peer_positions": result["peer_positions"],
+            # ✅ Flatten peer_agreement fields to top level for easier access
+            "agreement_level": peer_agreement["agreement_level"],
+            "rank_variance": peer_agreement["rank_variance"],
+            "score_variance": peer_agreement["score_variance"],
+            "rank_range": peer_agreement["rank_range"],
+            "score_range": peer_agreement["score_range"],
+            # Keep the full structure too for backward compatibility
+            "peer_agreement": peer_agreement
         })
 
     logger.info(f"Aggregation complete - Final ranking:")
@@ -295,7 +313,7 @@ def aggregate_peer_rankings(
         logger.info(
             f"  {ranking['rank']}. {ranking['country_code']} - "
             f"Score: {ranking['consensus_score']}/10 "
-            f"(Agreement: {ranking['peer_agreement']['agreement_level']})"
+            f"(Agreement: {ranking['agreement_level']})"
         )
 
     return {
@@ -393,7 +411,7 @@ def ranking_aggregator(state: Dict[str, Any]) -> Dict[str, Any]:
             "top_choice": result["final_rankings"][0]["country_code"] if result["final_rankings"] else None,
             "average_agreement": round(
                 mean([
-                    r["peer_agreement"]["rank_variance"]
+                    r["rank_variance"]
                     for r in result["final_rankings"]
                 ]), 2
             )

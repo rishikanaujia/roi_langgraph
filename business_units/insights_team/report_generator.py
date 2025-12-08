@@ -1,438 +1,498 @@
 """
-Insights Team - Executive Report Generator (Phase 1)
+Executive Report Generator
 
-Generates comprehensive investment reports with:
-- Executive summary
-- Detailed rankings with consensus scores
-- Expert presentations for each country
-- Peer analysis and agreement metrics
-- Methodology and references
+Generates comprehensive markdown reports from workflow results.
 
-Output: Professional markdown report ready for stakeholders.
+Author: Kanauija
+Date: 2024-12-08
+Updated: 2024-12-08 - Added Phase 2 support with debate section
 """
 
-import os
 import logging
 from typing import Dict, Any, List
 from datetime import datetime
-
-from src.registry.agent_registry import register_agent
-from src.registry.agent_metadata import (
-    AgentFramework,
-    AgentCapability
-)
+from pathlib import Path
 
 logger = logging.getLogger("ReportGenerator")
-logger.setLevel(logging.INFO)
 
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
-
-# ============================================================================
-# Report Generation
-# ============================================================================
 
 def generate_executive_report(state: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Generate comprehensive executive report from Phase 1 results.
+    Generate executive markdown report from workflow results.
 
-    Input (from state):
-        - countries: List[str]
-        - aggregated_ranking: Dict with final rankings
-        - expert_presentations: Dict with presentations
-        - peer_rankings: List of peer rankings
-        - execution_metadata: Timing and metrics
+    Supports both Phase 1 (no debate) and Phase 2 (with debate) workflows.
 
-    Output (to state):
-        - executive_report: Dict with report sections
-        - report_markdown: str - Formatted markdown
-        - report_metadata: Dict with generation info
+    Parameters:
+    -----------
+    state : Dict[str, Any]
+        Complete workflow state including:
+        - countries: List of country codes
+        - expert_presentations: Expert analysis results
+        - peer_rankings: Peer ranking results
+        - aggregated_ranking: Consensus ranking
+        - final_ranking: Final ranking (after debate if applicable)
+        - debate_triggered: Whether debate was executed
+        - debate_result: Debate results (if triggered)
+        - stage_timings: Execution timings
+
+    Returns:
+    --------
+    Dict[str, Any]
+        - report_markdown: Generated markdown report
+        - report_metadata: Report metadata (filepath, etc.)
     """
-
-    start_time = datetime.now()
-
     logger.info("=" * 70)
     logger.info("REPORT GENERATOR - Starting")
     logger.info("=" * 70)
 
-    # Extract data
-    countries = state.get("countries", [])
-    aggregated_ranking = state.get("aggregated_ranking", {})
-    expert_presentations = state.get("expert_presentations", {})
-    peer_rankings = state.get("peer_rankings", [])
-    exec_metadata = state.get("execution_metadata", {})
+    start_time = datetime.now()
 
-    final_rankings = aggregated_ranking.get("final_rankings", [])
-
-    if not final_rankings:
-        logger.warning("No rankings available for report")
-        return {
-            "executive_report": {},
-            "report_markdown": "# Error: No rankings available",
-            "report_metadata": {"error": "No rankings"}
-        }
+    # Detect workflow type
+    debate_triggered = state.get("debate_triggered", False)
+    workflow_type = "Phase 2 - Hot Seat Debate" if debate_triggered else "Phase 1 - Initial Rankings"
 
     # Generate report sections
-    report = {
-        "title": "Renewable Energy Investment Analysis - Phase 1 Rankings",
-        "generated_at": datetime.now().isoformat(),
-        "countries_analyzed": len(countries),
-        "executive_summary": _generate_executive_summary(final_rankings, peer_rankings),
-        "final_rankings": _generate_rankings_section(final_rankings),
-        "country_analyses": _generate_country_analyses(
-            final_rankings,
-            expert_presentations,
-            peer_rankings
-        ),
-        "methodology": _generate_methodology_section(
-            aggregated_ranking,
-            exec_metadata
-        ),
-        "execution_summary": _generate_execution_summary(exec_metadata)
-    }
+    sections = []
 
-    # Generate markdown
-    markdown_report = _format_as_markdown(report)
+    # Header
+    sections.append(_generate_header(state, workflow_type))
+
+    # Executive Summary
+    sections.append(_generate_executive_summary(state, workflow_type))
+
+    # Final Rankings Table
+    sections.append(_generate_rankings_table(state))
+
+    # Phase 2: Debate Section (if triggered)
+    if debate_triggered:
+        sections.append(_generate_debate_section(state))
+
+    # Detailed Country Analyses
+    sections.append(_generate_country_analyses(state))
+
+    # Methodology
+    sections.append(_generate_methodology(state, workflow_type))
+
+    # Execution Summary
+    sections.append(_generate_execution_summary(state))
+
+    # Footer
+    sections.append(_generate_footer(workflow_type))
+
+    # Combine all sections
+    report_markdown = "\n\n".join(sections)
 
     # Save to file
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"phase1_report_{timestamp}.md"
-    filepath = f"reports/{filename}"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"phase{'2' if debate_triggered else '1'}_report_{timestamp}.md"
+    filepath = Path("reports") / filename
 
-    # Create reports directory
-    os.makedirs("reports", exist_ok=True)
+    # Ensure reports directory exists
+    filepath.parent.mkdir(parents=True, exist_ok=True)
 
-    try:
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(markdown_report)
-        logger.info(f"📄 Report saved to: {filepath}")
-    except Exception as e:
-        logger.warning(f"Could not save report file: {e}")
-        filepath = None
+    # Write report
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(report_markdown)
 
-    end_time = datetime.now()
-    duration = (end_time - start_time).total_seconds()
+    duration = (datetime.now() - start_time).total_seconds()
 
+    logger.info(f"📄 Report saved to: {filepath}")
     logger.info("=" * 70)
     logger.info("✅ REPORT GENERATED")
     logger.info("=" * 70)
-    logger.info(f"Report size: {len(markdown_report):,} characters")
+    logger.info(f"Report size: {len(report_markdown):,} characters")
     logger.info(f"Time: {duration:.2f}s")
-    if filepath:
-        logger.info(f"Saved to: {filepath}")
+    logger.info(f"Saved to: {filepath}")
 
     return {
-        "executive_report": report,
-        "report_markdown": markdown_report,
+        "report_markdown": report_markdown,
         "report_metadata": {
+            "filepath": str(filepath),
             "filename": filename,
-            "filepath": filepath,
-            "generated_at": end_time.isoformat(),
-            "report_size_chars": len(markdown_report),
-            "generation_time_seconds": round(duration, 2),
-            "countries_analyzed": len(countries),
-            "rankings_included": len(final_rankings)
+            "size_chars": len(report_markdown),
+            "generation_time_seconds": duration,
+            "generated_at": datetime.now().isoformat(),
+            "workflow_type": workflow_type
         }
     }
 
 
-def _generate_executive_summary(
-        final_rankings: List[Dict],
-        peer_rankings: List[Dict]
-) -> str:
+def _generate_header(state: Dict[str, Any], workflow_type: str) -> str:
+    """Generate report header."""
+    countries = state.get("countries", [])
+    timestamp = datetime.now().isoformat()
+
+    return f"""# Renewable Energy Investment Analysis - {workflow_type}
+
+**Generated:** {timestamp}  
+**Countries Analyzed:** {len(countries)}
+
+---"""
+
+
+def _generate_executive_summary(state: Dict[str, Any], workflow_type: str) -> str:
     """Generate executive summary."""
+    final_ranking = state.get("final_ranking", [])
+    peer_rankings = state.get("peer_rankings", [])
+    debate_triggered = state.get("debate_triggered", False)
+    debate_result = state.get("debate_result")
 
-    if not final_rankings:
-        return "No rankings available."
+    if not final_ranking:
+        return "## Executive Summary\n\nNo ranking data available."
 
-    top_country = final_rankings[0]
-    top_code = top_country["country_code"]
-    top_score = top_country["consensus_score"]
-    agreement = top_country["peer_agreement"]["agreement_level"]
+    # Get winner
+    winner = final_ranking[0]
+    runner_up = final_ranking[1] if len(final_ranking) > 1 else None
+    third_place = final_ranking[2] if len(final_ranking) > 2 else None
 
-    summary = f"""Based on comprehensive multi-agent analysis, **{top_code}** emerges as the top investment destination with a consensus score of **{top_score}/10**.
+    # Build summary
+    lines = ["## Executive Summary", ""]
 
-**Key Findings:**
+    # Debate verdict (if applicable)
+    if debate_triggered and debate_result:
+        verdict = debate_result.get("verdict", "UNKNOWN")
+        if verdict == "OVERTURNED":
+            lines.append(f"**🔄 DEBATE VERDICT: OVERTURNED** - After rigorous debate, the ranking was revised.")
+        else:
+            lines.append(f"**✅ DEBATE VERDICT: UPHELD** - The original ranking withstood challenger scrutiny.")
+        lines.append("")
 
-- **Winner**: {top_code} ranked #1 with {agreement} peer agreement
-- **Peer Consensus**: {len(peer_rankings)} independent peer agents evaluated all presentations
-- **Analysis Method**: Expert presentations followed by comparative peer ranking and aggregation
+    lines.append(
+        f"Based on comprehensive multi-agent analysis, **{winner['country_code']}** emerges as the top investment destination with a consensus score of **{winner['consensus_score']:.2f}/10**.")
+    lines.append("")
 
-"""
+    lines.append("**Key Findings:**")
+    lines.append("")
+    lines.append(
+        f"- **Winner**: {winner['country_code']} ranked #1 with {winner.get('agreement_level', 'unknown')} peer agreement")
 
-    if len(final_rankings) > 1:
-        runner_up = final_rankings[1]
-        summary += f"- **Runner-up**: {runner_up['country_code']} (Score: {runner_up['consensus_score']}/10)\n"
+    if debate_triggered:
+        lines.append(f"- **Debate Executed**: Hot seat debate with {debate_result.get('num_rounds', 'unknown')} rounds")
+        lines.append(
+            f"- **Verdict**: {debate_result.get('verdict', 'UNKNOWN')} - {debate_result.get('recommendation', '')}")
 
-    if len(final_rankings) > 2:
-        third = final_rankings[2]
-        summary += f"- **Third Place**: {third['country_code']} (Score: {third['consensus_score']}/10)\n"
+    lines.append(f"- **Peer Consensus**: {len(peer_rankings)} independent peer agents evaluated all presentations")
+    lines.append(f"- **Analysis Method**: Expert presentations followed by comparative peer ranking and aggregation")
+    lines.append("")
 
-    # Add peer agreement note
-    all_agree = all(
-        r["peer_agreement"]["agreement_level"] in ["very_high", "high"]
-        for r in final_rankings
-    )
+    if runner_up:
+        lines.append(f"- **Runner-up**: {runner_up['country_code']} (Score: {runner_up['consensus_score']:.2f}/10)")
+    if third_place:
+        lines.append(
+            f"- **Third Place**: {third_place['country_code']} (Score: {third_place['consensus_score']:.2f}/10)")
+    lines.append("")
 
-    if all_agree:
-        summary += f"\n**High Confidence**: All rankings show strong peer agreement, indicating robust consensus.\n"
+    # Agreement indicator
+    if winner.get('agreement_level') in ['very_high', 'high']:
+        lines.append("**High Confidence**: All rankings show strong peer agreement, indicating robust consensus.")
+    elif winner.get('agreement_level') == 'medium':
+        lines.append("**Moderate Confidence**: Rankings show reasonable agreement with some divergence.")
+    else:
+        lines.append("**Low Confidence**: Significant divergence in peer rankings - further analysis recommended.")
 
-    return summary.strip()
+    lines.append("")
+    lines.append("---")
 
-
-def _generate_rankings_section(final_rankings: List[Dict]) -> List[Dict]:
-    """Generate rankings section with details."""
-
-    rankings = []
-
-    for ranking in final_rankings:
-        rankings.append({
-            "rank": ranking["rank"],
-            "country_code": ranking["country_code"],
-            "consensus_score": ranking["consensus_score"],
-            "average_peer_score": ranking["average_peer_score"],
-            "score_stddev": ranking["score_stddev"],
-            "peer_scores": ranking["peer_scores"],
-            "borda_points": ranking["borda_points"],
-            "agreement_level": ranking["peer_agreement"]["agreement_level"],
-            "rank_variance": ranking["peer_agreement"]["rank_variance"],
-            "score_range": ranking["peer_agreement"]["score_range"]
-        })
-
-    return rankings
+    return "\n".join(lines)
 
 
-def _generate_country_analyses(
-        final_rankings: List[Dict],
-        expert_presentations: Dict[str, Dict],
-        peer_rankings: List[Dict]
-) -> List[Dict]:
+def _generate_rankings_table(state: Dict[str, Any]) -> str:
+    """Generate final rankings table."""
+    final_ranking = state.get("final_ranking", [])
+
+    if not final_ranking:
+        return "## Final Rankings\n\nNo ranking data available."
+
+    lines = ["## Final Rankings", ""]
+    lines.append("| Rank | Country | Consensus Score | Avg Peer Score | Agreement | Peer Scores |")
+    lines.append("|------|---------|-----------------|----------------|-----------|-------------|")
+
+    for country in final_ranking:
+        rank = country.get("rank", 0)
+        code = country.get("country_code", "???")
+        consensus = country.get("consensus_score", 0)
+        avg_peer = country.get("average_peer_score", 0)
+        agreement = country.get("agreement_level", "unknown")
+        peer_scores = country.get("peer_scores", [])
+
+        # Format peer scores
+        peer_scores_str = ", ".join([f"{s:.1f}" for s in peer_scores]) if peer_scores else "N/A"
+
+        # Add debate markers
+        marker = ""
+        if country.get("debate_winner"):
+            marker = " 🏆"
+        elif country.get("debate_loser"):
+            marker = " 📉"
+
+        # Format rank
+        rank_emoji = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, "")
+        rank_str = f"**#{rank}**" if rank == 1 else f"**#{rank}**"
+
+        lines.append(
+            f"| {rank_emoji} {rank_str} | **{code}**{marker} | **{consensus:.2f}/10** | {avg_peer:.1f}/10 | {agreement} | {peer_scores_str} |"
+        )
+
+    lines.append("")
+    lines.append("---")
+
+    return "\n".join(lines)
+
+
+def _generate_debate_section(state: Dict[str, Any]) -> str:
+    """Generate debate section (Phase 2 only)."""
+    debate_result = state.get("debate_result")
+    final_ranking = state.get("final_ranking", [])
+
+    if not debate_result:
+        return ""
+
+    lines = ["## 🔥 Hot Seat Debate Analysis", ""]
+
+    # Get participants
+    defender = final_ranking[0] if final_ranking else None
+    challenger = final_ranking[1] if len(final_ranking) > 1 else None
+
+    if defender and challenger:
+        lines.append(f"**Defending Position:** {defender['country_code']} (Top Ranked)")
+        lines.append(f"**Challenger:** {challenger['country_code']} (Runner-up)")
+        lines.append("")
+
+    # Verdict
+    verdict = debate_result.get("verdict", "UNKNOWN")
+    recommendation = debate_result.get("recommendation", "")
+
+    lines.append("### Verdict")
+    lines.append("")
+    if verdict == "OVERTURNED":
+        lines.append(f"**🔄 OVERTURNED** - {recommendation}")
+        lines.append("")
+        lines.append("The challenger successfully demonstrated superior investment merits, ")
+        lines.append("resulting in a revised ranking order.")
+    else:
+        lines.append(f"**✅ UPHELD** - {recommendation}")
+        lines.append("")
+        lines.append("The defending position successfully countered all challenges, ")
+        lines.append("confirming the original ranking.")
+    lines.append("")
+
+    # Statistics
+    lines.append("### Debate Statistics")
+    lines.append("")
+    lines.append(f"- **Total Rounds:** {len(debate_result.get('rounds', []))}")
+    lines.append(f"- **Challenger Wins:** {debate_result.get('challenger_wins', 0)}")
+    lines.append(f"- **Defender Wins:** {debate_result.get('defender_wins', 0)}")
+    lines.append(f"- **Average Challenger Score:** {debate_result.get('avg_challenger_score', 0):.2f}/10")
+    lines.append(f"- **Average Defender Score:** {debate_result.get('avg_defender_score', 0):.2f}/10")
+    lines.append("")
+
+    # Round-by-round
+    rounds = debate_result.get("rounds", [])
+    if rounds:
+        lines.append("### Round-by-Round Analysis")
+        lines.append("")
+
+        for i, round_data in enumerate(rounds, 1):
+            lines.append(f"#### Round {i}")
+            lines.append("")
+            lines.append(f"**Challenge Score:** {round_data.get('challenger_score', 0):.1f}/10")
+            lines.append(f"**Defense Score:** {round_data.get('defender_score', 0):.1f}/10")
+            lines.append(f"**Winner:** {round_data.get('winner', 'Unknown')}")
+            lines.append("")
+
+            # Challenge argument (truncated)
+            challenge = round_data.get("challenge_argument", "")
+            if challenge and len(challenge) > 200:
+                challenge = challenge[:200] + "..."
+            if challenge:
+                lines.append(f"*Challenge:* {challenge}")
+                lines.append("")
+
+            # Defense response (truncated)
+            defense = round_data.get("defense_response", "")
+            if defense and len(defense) > 200:
+                defense = defense[:200] + "..."
+            if defense:
+                lines.append(f"*Defense:* {defense}")
+                lines.append("")
+
+    lines.append("---")
+
+    return "\n".join(lines)
+
+
+def _generate_country_analyses(state: Dict[str, Any]) -> str:
     """Generate detailed country analyses."""
+    final_ranking = state.get("final_ranking", [])
+    expert_presentations = state.get("expert_presentations", {})
+    peer_rankings = state.get("peer_rankings", [])
 
-    analyses = []
+    if not final_ranking:
+        return "## Detailed Country Analyses\n\nNo data available."
 
-    for ranking in final_rankings:
-        country_code = ranking["country_code"]
+    lines = ["## Detailed Country Analyses", ""]
+
+    for country in final_ranking:
+        country_code = country.get("country_code", "???")
+        rank = country.get("rank", 0)
+
+        # Get presentation
         presentation = expert_presentations.get(country_code, {})
 
-        # Get peer reasonings
-        peer_reasonings = []
-        for peer_ranking in peer_rankings:
-            for country_rank in peer_ranking.get("rankings", []):
-                if country_rank["country_code"] == country_code:
-                    peer_reasonings.append({
-                        "peer_id": peer_ranking["peer_id"],
-                        "score": country_rank["score"],
-                        "reasoning": country_rank.get("reasoning", "")
-                    })
+        # Rank emoji
+        rank_emoji = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, "📊")
 
-        analysis = {
-            "rank": ranking["rank"],
-            "country_code": country_code,
-            "consensus_score": ranking["consensus_score"],
-            "agreement": ranking["peer_agreement"]["agreement_level"],
-
-            # From expert presentation
-            "executive_summary": presentation.get("executive_summary", "N/A"),
-            "strengths": presentation.get("strengths", []),
-            "opportunities": presentation.get("opportunities", []),
-            "risks": presentation.get("risks", []),
-            "investment_case": presentation.get("investment_case", "N/A"),
-            "expert_recommendation": presentation.get("recommendation", "N/A"),
-            "expert_confidence": presentation.get("confidence", "N/A"),
-
-            # From peer analysis
-            "peer_reasonings": peer_reasonings,
-            "peer_scores": ranking["peer_scores"]
-        }
-
-        analyses.append(analysis)
-
-    return analyses
-
-
-def _generate_methodology_section(
-        aggregated_ranking: Dict,
-        exec_metadata: Dict
-) -> Dict:
-    """Generate methodology section."""
-
-    return {
-        "workflow": "Phase 1 - Initial Rankings",
-        "stages": [
-            "1. Research Loading: Country-specific renewable energy research",
-            "2. Expert Presentations: Dedicated expert agents build investment cases",
-            "3. Peer Rankings: Independent peer agents rank all presentations",
-            "4. Aggregation: Borda count + average scoring to generate consensus"
-        ],
-        "aggregation_method": aggregated_ranking.get("method", "hybrid"),
-        "num_peers": aggregated_ranking.get("num_peers", 0),
-        "ai_model": "GPT-4o (via LangChain)",
-        "execution_mode": "Parallel (Stages 2 & 3)",
-        "stage_timings": exec_metadata.get("stage_timings", {})
-    }
-
-
-def _generate_execution_summary(exec_metadata: Dict) -> Dict:
-    """Generate execution summary."""
-
-    return {
-        "total_duration_seconds": exec_metadata.get("total_duration_seconds", 0),
-        "parallel_efficiency": exec_metadata.get("parallel_efficiency", 0),
-        "stage_timings": exec_metadata.get("stage_timings", {}),
-        "start_time": exec_metadata.get("start_time", ""),
-        "end_time": exec_metadata.get("end_time", "")
-    }
-
-
-def _format_as_markdown(report: Dict) -> str:
-    """Format report as markdown."""
-
-    md = f"""# {report['title']}
-
-**Generated:** {report['generated_at']}  
-**Countries Analyzed:** {report['countries_analyzed']}
-
----
-
-## Executive Summary
-
-{report['executive_summary']}
-
----
-
-## Final Rankings
-
-"""
-
-    # Rankings table
-    rankings = report['final_rankings']
-    if rankings:
-        md += "| Rank | Country | Consensus Score | Avg Peer Score | Agreement | Peer Scores |\n"
-        md += "|------|---------|-----------------|----------------|-----------|-------------|\n"
-
-        for r in rankings:
-            scores_str = ", ".join([f"{s:.1f}" for s in r['peer_scores']])
-            md += f"| **#{r['rank']}** | **{r['country_code']}** | **{r['consensus_score']}/10** | "
-            md += f"{r['average_peer_score']:.1f}/10 | {r['agreement_level']} | {scores_str} |\n"
-
-        md += "\n"
-
-    # Country analyses
-    md += "---\n\n## Detailed Country Analyses\n\n"
-
-    for analysis in report['country_analyses']:
-        rank_emoji = "🥇" if analysis['rank'] == 1 else "🥈" if analysis['rank'] == 2 else "🥉" if analysis[
-                                                                                                    'rank'] == 3 else "📊"
-
-        md += f"### {rank_emoji} #{analysis['rank']} - {analysis['country_code']}\n\n"
-        md += f"**Consensus Score:** {analysis['consensus_score']}/10 | "
-        md += f"**Agreement:** {analysis['agreement']} | "
-        md += f"**Expert Recommendation:** {analysis['expert_recommendation']}\n\n"
+        lines.append(f"### {rank_emoji} #{rank} - {country_code}")
+        lines.append("")
+        lines.append(f"**Consensus Score:** {country['consensus_score']:.2f}/10 | "
+                     f"**Agreement:** {country.get('agreement_level', 'unknown')} | "
+                     f"**Expert Recommendation:** {presentation.get('recommendation', 'N/A')}")
+        lines.append("")
 
         # Executive Summary
-        md += "#### Executive Summary\n\n"
-        md += f"{analysis['executive_summary']}\n\n"
+        if presentation.get("executive_summary"):
+            lines.append("#### Executive Summary")
+            lines.append("")
+            lines.append(presentation["executive_summary"])
+            lines.append("")
 
-        # Strengths
-        if analysis['strengths']:
-            md += "#### Key Strengths\n\n"
-            for i, strength in enumerate(analysis['strengths'], 1):
-                md += f"{i}. {strength}\n"
-            md += "\n"
+        # Key Strengths
+        strengths = presentation.get("key_strengths", [])
+        if strengths:
+            lines.append("#### Key Strengths")
+            lines.append("")
+            for i, strength in enumerate(strengths, 1):
+                lines.append(f"{i}. {strength}")
+            lines.append("")
 
-        # Opportunities
-        if analysis['opportunities']:
-            md += "#### Investment Opportunities\n\n"
-            for i, opp in enumerate(analysis['opportunities'], 1):
-                md += f"{i}. {opp}\n"
-            md += "\n"
+        # Investment Opportunities
+        opportunities = presentation.get("investment_opportunities", [])
+        if opportunities:
+            lines.append("#### Investment Opportunities")
+            lines.append("")
+            for i, opp in enumerate(opportunities, 1):
+                lines.append(f"{i}. {opp}")
+            lines.append("")
 
-        # Risks
-        if analysis['risks']:
-            md += "#### Risks & Challenges\n\n"
-            for i, risk in enumerate(analysis['risks'], 1):
-                md += f"{i}. {risk}\n"
-            md += "\n"
+        # Risks & Challenges
+        risks = presentation.get("risks_and_challenges", [])
+        if risks:
+            lines.append("#### Risks & Challenges")
+            lines.append("")
+            for i, risk in enumerate(risks, 1):
+                lines.append(f"{i}. {risk}")
+            lines.append("")
 
         # Investment Case
-        if analysis['investment_case'] and analysis['investment_case'] != "N/A":
-            md += "#### Investment Case\n\n"
-            md += f"{analysis['investment_case']}\n\n"
+        if presentation.get("investment_case"):
+            lines.append("#### Investment Case")
+            lines.append("")
+            lines.append(presentation["investment_case"])
+            lines.append("")
 
-        # Peer Analysis
-        md += "#### Peer Evaluation\n\n"
-        md += f"**Peer Scores:** {', '.join([f'{s:.1f}/10' for s in analysis['peer_scores']])}\n\n"
+        # Peer Evaluation
+        peer_scores = country.get("peer_scores", [])
+        if peer_scores and peer_rankings:
+            lines.append("#### Peer Evaluation")
+            lines.append("")
+            lines.append(f"**Peer Scores:** {', '.join([f'{s:.1f}/10' for s in peer_scores])}")
+            lines.append("")
+            lines.append("**Peer Reasonings:**")
+            lines.append("")
 
-        if analysis['peer_reasonings']:
-            md += "**Peer Reasonings:**\n\n"
-            for pr in analysis['peer_reasonings']:
-                md += f"- **{pr['peer_id']}** ({pr['score']}/10): {pr['reasoning']}\n"
-            md += "\n"
+            # Get peer reasonings for this country
+            for i, peer_ranking in enumerate(peer_rankings, 1):
+                rankings_list = peer_ranking.get("rankings", [])
+                for rank_item in rankings_list:
+                    if rank_item.get("country_code") == country_code:
+                        reasoning = rank_item.get("reasoning", "No reasoning provided")
+                        score = rank_item.get("score", 0)
+                        lines.append(f"- **peer_ranker_{i}** ({score}/10): {reasoning}")
+            lines.append("")
 
-        md += "---\n\n"
+        lines.append("---")
+        lines.append("")
 
-    # Methodology
-    md += "## Methodology\n\n"
-    methodology = report['methodology']
-
-    md += f"**Workflow:** {methodology['workflow']}\n\n"
-
-    md += "**Analysis Stages:**\n\n"
-    for stage in methodology['stages']:
-        md += f"- {stage}\n"
-    md += "\n"
-
-    md += f"**Aggregation Method:** {methodology['aggregation_method']}\n"
-    md += f"**Number of Peer Rankers:** {methodology['num_peers']}\n"
-    md += f"**AI Model:** {methodology['ai_model']}\n"
-    md += f"**Execution Mode:** {methodology['execution_mode']}\n\n"
-
-    # Execution summary
-    md += "## Execution Summary\n\n"
-    exec_summary = report['execution_summary']
-
-    md += f"**Total Duration:** {exec_summary['total_duration_seconds']:.2f} seconds\n"
-    md += f"**Parallel Efficiency:** {exec_summary.get('parallel_efficiency', 0):.2f}x\n\n"
-
-    if exec_summary.get('stage_timings'):
-        md += "**Stage Timings:**\n\n"
-        for stage, duration in exec_summary['stage_timings'].items():
-            md += f"- {stage.capitalize()}: {duration:.2f}s\n"
-        md += "\n"
-
-    # Footer
-    md += "---\n\n"
-    md += "*This report was generated by the Phase 1 Multi-Agent Ranking System*  \n"
-    md += f"*Generated at: {report['generated_at']}*\n"
-    md += "*Framework: Custom + LangChain + Async Parallel Execution*\n"
-
-    return md
+    return "\n".join(lines)
 
 
-# ============================================================================
-# Agent Registration
-# ============================================================================
+def _generate_methodology(state: Dict[str, Any], workflow_type: str) -> str:
+    """Generate methodology section."""
+    peer_rankings = state.get("peer_rankings", [])
+    aggregated_ranking = state.get("aggregated_ranking", {})
+    debate_triggered = state.get("debate_triggered", False)
 
-@register_agent(
-    agent_id="insights_team_report_generator_phase1_v1",
-    name="Executive Report Generator (Phase 1)",
-    description="Generates comprehensive markdown reports with rankings, presentations, and analysis",
-    framework=AgentFramework.CUSTOM,
-    capabilities=[AgentCapability.REPORT_GEN],
-    business_unit="insights_team",
-    contact="insights@company.com",
-    version="1.0.0",
-    required_inputs=["aggregated_ranking", "expert_presentations"],
-    output_keys=["executive_report", "report_markdown", "report_metadata"],
-    tags=["report", "markdown", "executive", "phase1"]
-)
-def report_generator_agent(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Report generator agent wrapper."""
-    return generate_executive_report(state)
+    lines = ["## Methodology", ""]
+    lines.append(f"**Workflow:** {workflow_type}")
+    lines.append("")
+    lines.append("**Analysis Stages:**")
+    lines.append("")
+
+    if debate_triggered:
+        lines.append("- 1. Research Loading: Country-specific renewable energy research")
+        lines.append("- 2. Expert Presentations: Dedicated expert agents build investment cases")
+        lines.append("- 3. Peer Rankings: Independent peer agents rank all presentations")
+        lines.append("- 4. Aggregation: Borda count + average scoring to generate consensus")
+        lines.append("- 5. Hot Seat Debate: Challenger agents test top-ranked country")
+        lines.append("- 6. Final Verdict: Ranking maintained or revised based on debate")
+    else:
+        lines.append("- 1. Research Loading: Country-specific renewable energy research")
+        lines.append("- 2. Expert Presentations: Dedicated expert agents build investment cases")
+        lines.append("- 3. Peer Rankings: Independent peer agents rank all presentations")
+        lines.append("- 4. Aggregation: Borda count + average scoring to generate consensus")
+
+    lines.append("")
+    lines.append(f"**Aggregation Method:** {aggregated_ranking.get('method', 'hybrid')}")
+    lines.append(f"**Number of Peer Rankers:** {len(peer_rankings)}")
+    lines.append("**AI Model:** GPT-4o (via LangChain)")
+    lines.append("**Execution Mode:** Parallel (Stages 2 & 3)")
+
+    if debate_triggered:
+        debate_result = state.get("debate_result", {})
+        lines.append(f"**Debate Rounds:** {len(debate_result.get('rounds', []))}")
+        lines.append(f"**Debate Model:** GPT-4o with temperature 0.7")
+
+    return "\n".join(lines)
+
+
+def _generate_execution_summary(state: Dict[str, Any]) -> str:
+    """Generate execution summary."""
+    stage_timings = state.get("stage_timings", {})
+
+    # Calculate total duration
+    total_duration = sum(stage_timings.values())
+
+    # Calculate parallel efficiency
+    presentation_time = stage_timings.get("presentations", 0)
+    ranking_time = stage_timings.get("rankings", 0)
+    sequential_time = sum(stage_timings.values())
+    parallel_time = max(presentation_time, ranking_time)
+
+    efficiency = sequential_time / parallel_time if parallel_time > 0 else 0
+
+    lines = ["## Execution Summary", ""]
+    lines.append(f"**Total Duration:** {total_duration:.2f} seconds")
+    lines.append(f"**Parallel Efficiency:** {efficiency:.2f}x")
+
+    # Add stage breakdown
+    if stage_timings:
+        lines.append("")
+        lines.append("**Stage Timings:**")
+        lines.append("")
+        for stage, duration in sorted(stage_timings.items(), key=lambda x: x[1], reverse=True):
+            percentage = (duration / total_duration * 100) if total_duration > 0 else 0
+            lines.append(f"- {stage.capitalize()}: {duration:.2f}s ({percentage:.1f}%)")
+
+    lines.append("")
+    lines.append("---")
+
+    return "\n".join(lines)
+
+
+def _generate_footer(workflow_type: str) -> str:
+    """Generate report footer."""
+    timestamp = datetime.now().isoformat()
+
+    return f"""*This report was generated by the {workflow_type} Multi-Agent System*  
+*Generated at: {timestamp}*
+*Framework: LangGraph + LangChain + Async Parallel Execution*"""

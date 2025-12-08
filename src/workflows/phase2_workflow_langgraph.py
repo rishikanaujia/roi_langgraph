@@ -15,8 +15,9 @@ Date: 2024-12-08
 import asyncio
 import logging
 import time
-from typing import Dict, Any, List, Optional, TypedDict
+from typing import Dict, Any, List, Optional, TypedDict, Annotated
 from pathlib import Path
+import operator
 
 from langgraph.graph import StateGraph, END
 
@@ -73,7 +74,7 @@ class Phase2State(TypedDict, total=False):
     Metadata:
     ---------
     errors: List of errors encountered
-    stage_timings: Dict of timing for each stage
+    stage_timings: Dict of timing for each stage (uses reducer to merge)
     total_duration: Total execution time
     """
     # Input parameters
@@ -101,7 +102,8 @@ class Phase2State(TypedDict, total=False):
 
     # Metadata
     errors: List[str]
-    stage_timings: Dict[str, float]
+    # ✅ FIX: Use Annotated with operator.or_ to merge dicts
+    stage_timings: Annotated[Dict[str, float], operator.or_]
     total_duration: float
 
 
@@ -250,7 +252,7 @@ async def aggregate_rankings_node(state: Phase2State) -> Dict[str, Any]:
         logger.info(f"   Consensus level: {aggregated_ranking.get('consensus_level', 'unknown')}")
         logger.info("")
 
-        # ✅ FIX: Set final_ranking here so it's available even if debate is skipped
+        # ✅ Set final_ranking here so it's available even if debate is skipped
         return {
             "aggregated_ranking": aggregated_ranking,
             "final_ranking": aggregated_ranking.get("final_rankings", []),
@@ -595,7 +597,7 @@ async def run_phase2_langgraph(
         "debate_threshold": debate_threshold,
         "num_challengers": num_challengers,
         "errors": [],
-        "stage_timings": {}
+        "stage_timings": {}  # Empty dict, will be merged using reducer
     }
 
     # Execute workflow
@@ -604,11 +606,8 @@ async def run_phase2_langgraph(
     # Calculate total duration
     total_duration = time.time() - start_time
 
-    # Merge all stage timings
-    all_timings = {}
-    for timing_dict in final_state.get("stage_timings", []):
-        if isinstance(timing_dict, dict):
-            all_timings.update(timing_dict)
+    # ✅ FIX: stage_timings is now properly merged by the reducer
+    all_timings = final_state.get("stage_timings", {})
 
     # Build execution metadata
     execution_metadata = {

@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.config import get_settings
-from api.routers import health, rankings
+from api.routers import health, rankings, phase2_endpoints
 
 # Configure logging
 logging.basicConfig(
@@ -68,6 +68,7 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(rankings.router, prefix="/api/v1")
+app.include_router(phase2_endpoints.router)
 
 
 if __name__ == "__main__":
