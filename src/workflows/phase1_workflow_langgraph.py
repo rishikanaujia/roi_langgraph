@@ -1,7 +1,12 @@
 """
-Phase 1 Workflow - LangGraph Implementation
+Phase 1 Workflow - LangGraph Implementation (FULLY FIXED)
 
-Uses LangGraph's StateGraph for proper workflow orchestration.
+FIXES APPLIED:
+1. Sets state["final_ranking"] for report generation (blank report fix)
+2. Removes invalid state["executive_report"] access (KeyError fix)
+
+Author: Kanauija
+Date: 2024-12-08
 """
 
 import asyncio
@@ -52,9 +57,9 @@ class Phase1GraphState(TypedDict):
     peer_rankings: Annotated[List[Dict], add_to_list]
     aggregated_ranking: Dict
     consensus_scores: Dict[str, float]
+    final_ranking: List[Dict[str, Any]]  # ✅ ADDED - needed for report generation
 
     # Report outputs
-    executive_report: Dict
     report_markdown: str
     report_metadata: Dict
 
@@ -217,6 +222,9 @@ def aggregate_rankings_node(state: Phase1GraphState) -> Phase1GraphState:
         # Update state
         state["aggregated_ranking"] = aggregated
 
+        # ✅ CRITICAL FIX #1: Set final_ranking for report generator
+        state["final_ranking"] = aggregated.get("final_rankings", [])
+
         # Extract consensus scores
         consensus_scores = {
             r["country_code"]: r["consensus_score"]
@@ -227,10 +235,13 @@ def aggregate_rankings_node(state: Phase1GraphState) -> Phase1GraphState:
         state["execution_metadata"]["stage_timings"]["aggregation"] = round(stage_duration, 2)
 
         logger.info(f"✅ Stage 4 complete in {stage_duration:.2f}s")
+        logger.info(f"   Final ranking set with {len(state['final_ranking'])} countries")
 
     except Exception as e:
         logger.error(f"Stage 4 failed: {str(e)}")
         state["errors"].append(f"Aggregation failed: {str(e)}")
+        # ✅ Set empty final_ranking on error
+        state["final_ranking"] = []
 
     return state
 
@@ -251,10 +262,11 @@ def generate_report_node(state: Phase1GraphState) -> Phase1GraphState:
 
         stage_duration = time.time() - stage_start
 
-        # Update state
-        state["executive_report"] = result["executive_report"]
-        state["report_markdown"] = result["report_markdown"]
-        state["report_metadata"] = result["report_metadata"]
+        # ✅ CRITICAL FIX #2: Only access keys that report generator actually returns
+        # Report generator returns: report_markdown, report_metadata
+        # It does NOT return: executive_report
+        state["report_markdown"] = result.get("report_markdown", "")
+        state["report_metadata"] = result.get("report_metadata", {})
         state["execution_metadata"]["stage_timings"]["report_generation"] = round(stage_duration, 2)
 
         report_path = state["report_metadata"].get("filepath", "")
@@ -264,6 +276,7 @@ def generate_report_node(state: Phase1GraphState) -> Phase1GraphState:
 
     except Exception as e:
         logger.error(f"Stage 5 failed: {str(e)}")
+        logger.exception(e)  # ✅ Log full traceback for debugging
         state["errors"].append(f"Report generation failed: {str(e)}")
 
     return state
@@ -361,8 +374,8 @@ async def run_phase1_langgraph(
         "peer_rankings": [],
         "aggregated_ranking": {},
         "consensus_scores": {},
-        "executive_report": {},
-        "report_markdown": "",
+        "final_ranking": [],  # ✅ ADDED - Initialize as empty list
+        "report_markdown": "",  # ✅ Initialize report fields
         "report_metadata": {},
         "execution_metadata": {
             "start_time": datetime.now().isoformat(),
@@ -396,10 +409,10 @@ async def run_phase1_langgraph(
     logger.info("PHASE 1 LANGGRAPH WORKFLOW - COMPLETE")
     logger.info("=" * 70)
     logger.info(f"Total duration: {workflow_duration:.2f}s")
-    logger.info(f"Countries ranked: {len(final_state.get('aggregated_ranking', {}).get('final_rankings', []))}")
+    logger.info(f"Countries ranked: {len(final_state.get('final_ranking', []))}")
 
     # Show final ranking
-    final_rankings = final_state.get('aggregated_ranking', {}).get('final_rankings', [])
+    final_rankings = final_state.get('final_ranking', [])
     if final_rankings:
         logger.info(f"\nFinal Rankings:")
         for r in final_rankings:
