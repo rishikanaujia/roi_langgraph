@@ -24,11 +24,11 @@ def test_basic_registration():
     metadata = AgentMetadata(
         agent_id="test_agent_1",
         name="Test Agent",
-        description="A test agent",
+        description="A tests agent",
         framework=AgentFramework.CUSTOM,
         capabilities=[AgentCapability.RESEARCH],
         business_unit="test_team",
-        contact="test@company.com"
+        contact="tests@company.com"
     )
     
     # Register
@@ -49,7 +49,7 @@ def test_decorator_registration():
         framework=AgentFramework.CUSTOM,
         capabilities=[AgentCapability.ANALYSIS],
         business_unit="test_team",
-        contact="test@company.com"
+        contact="tests@company.com"
     )
     def my_agent(state):
         return {"result": state.get("input", 0) * 2}
@@ -76,7 +76,7 @@ def test_discovery():
             framework=AgentFramework.CUSTOM,
             capabilities=[AgentCapability.RESEARCH],
             business_unit="team_a" if i < 2 else "team_b",
-            contact="test@company.com"
+            contact="tests@company.com"
         )
         registry.register_agent(metadata, lambda s: {"done": True})
     
