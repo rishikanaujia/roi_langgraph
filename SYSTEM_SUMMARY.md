@@ -322,7 +322,7 @@ result = workflow_with_research.run(
 
 ### **Test Script**
 ```bash
-# Run complete test
+# Run complete tests
 python test_workflow_with_research.py
 ```
 
@@ -561,7 +561,7 @@ NASA_API_KEY=DEMO_KEY          # Default is DEMO_KEY (works fine)
 # Research loader unit tests
 python test_research_loader.py
 
-# Complete workflow integration test
+# Complete workflow integration tests
 python test_workflow_with_research.py
 ```
 
