@@ -5,6 +5,7 @@ Enhanced version that loads research data and passes it to insights agents.
 Matches the pattern from country_comparison_graph.py
 """
 
+
 import logging
 from typing import Dict, Any, List, Literal
 from datetime import datetime

@@ -87,7 +87,7 @@ uvicorn src.api.routes:app --port 8001
 # Clear cache
 rm -rf **/__pycache__
 
-# Run specific test
+# Run specific tests
 python test_registry.py
 ```
 
